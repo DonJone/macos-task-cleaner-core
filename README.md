@@ -1,37 +1,151 @@
-# macOS Task Cleaner Core (`macos-task-cleaner-core`)
+# macOS Task Cleaner
 
-面向 macOS 的轻量级前台任务清场核心引擎库。提供高精度 GUI 应用扫描、多级白名单防误杀矩阵以及 POSIX 三段式降级清场算法。
+<p align="left">
+  <a href="README.md">English</a> | <a href="README_ZH.md">简体中文</a>
+</p>
 
----
-
-## 核心架构与模块
-
-* **`app` ([src/app.rs](file:///Users/don/work/git/macos-task-cleaner/src/app.rs))**：
-  * 通过 AppKit `NSWorkspace` 原生 API 精准检索当前系统所有处于活跃状态的前台图形应用 (`activationPolicy == Regular`)；
-  * 原生排除纯后台守护进程 (Daemon)、Launchd 代理、小组件与状态栏辅助工具。
-* **`whitelist` ([src/whitelist.rs](file:///Users/don/work/git/macos-task-cleaner/src/whitelist.rs))**：
-  * **L1 系统核心层 (Core OS)**：保护 Finder、Dock、WindowServer、SystemUIServer 等；
-  * **L2 会话终端层 (Context Shell)**：自适应保护调用者 PID、父进程 PPID，以及常见终端与 IDE（Ghostty、iTerm2、Terminal、Alacritty、VS Code 等）；
-  * **L3 常驻设施层 (Persistent Utilities)**：保护 Raycast、Alfred、Rectangle、输入法（鼠须管、搜狗）与系统监控小组件；
-  * **L4 用户配置层 (User Config & CLI)**：支持从 `~/.config/mtc/config.toml` 加载，并提供向配置文件持久化追加规则的接口。
-* **`signal` ([src/signal.rs](file:///Users/don/work/git/macos-task-cleaner/src/signal.rs))**：
-  * 基于 `libc::kill(pid, 0)` 的无损存活探测；
-  * 三段式平滑清场算法：`SIGTERM` 软下线通知 -> 宽限期轮询 -> `SIGKILL` 兜底强退。
+A high-performance, non-intrusive foreground task cleaner and process manager designed natively for macOS. Powered by a high-precision Rust core engine (`macos-task-cleaner-core`), an interactive command-line wizard (`mtc`), and a sleek native SwiftUI/AppKit menu bar utility (`TaskCleaner.app`).
 
 ---
 
-## 引入依赖
+## Overview & Interface Showcase
 
-在 `Cargo.toml` 中添加：
+| Native Menu Bar Utility (`TaskCleaner.app`) | Interactive CLI Wizard (`mtc -i`) |
+| :---: | :---: |
+| <img src="docs/images/gui-menubar.png" width="340" alt="macOS Task Cleaner Menu Bar GUI" /> | <img src="docs/images/cli-interactive.png" width="480" alt="macOS Task Cleaner Interactive CLI" /> |
+
+---
+
+## Key Features
+
+* **Non-Intrusive POSIX Tiered Termination**: Bypasses blocking modal save/confirm dialogs by issuing an orderly, tiered shutdown sequence (`SIGTERM` soft termination -> polling grace period -> `SIGKILL` fallback).
+* **4-Tier Whitelist Defense Matrix**:
+  * **L1 Core OS**: Protects essential system processes (Finder, Dock, WindowServer, SystemUIServer).
+  * **L2 Context Shell**: Automatically immunizes the caller's PID, parent PPID, active shell sessions, and popular developer tools (Terminal, Ghostty, iTerm2, Alacritty, VS Code).
+  * **L3 Persistent Utilities**: Protects system menu bar tools, window managers, and input methods (Raycast, Alfred, Rectangle, Rime, Sogou).
+  * **L4 User Configuration**: Supports persistent rules managed via `~/.config/mtc/config.toml`.
+* **Dual Native Interfaces**:
+  * **Menu Bar Extra (GUI)**: Live running task badge, adaptive window height, individual task termination, and one-click whitelist toggling.
+  * **Terminal Wizard (CLI)**: Keyboard-driven interactive console (`mtc -i`) with quick index-based actions, pre-flight dry runs, and JSON output support.
+* **Authentic macOS System Utility Craft**: Follows Apple Human Interface Guidelines with a native monitor screen chassis, subtle technical gridlines, and full light/dark appearance support.
+
+---
+
+## Ecosystem Architecture
+
+The project is structured into three decoupled, complementary components:
+
+* **[macos-task-cleaner-core](https://github.com/DonJone/macos-task-cleaner-core)**: The core engine crate written in Rust. Provides `NSWorkspace` foreground process scanning, whitelist evaluation, and POSIX signal management.
+* **[macos-task-cleaner-cli](https://github.com/DonJone/macos-task-cleaner-cli) (`mtc`)**: The command-line client providing interactive wizards, scripting automation, and dry-run diagnostics.
+* **[macos-task-cleaner-gui](https://github.com/DonJone/macos-task-cleaner-gui) (`TaskCleaner.app`)**: The native macOS menu bar status item application built with Swift and SwiftUI.
+
+---
+
+## Quick Start & Installation
+
+### Option 1: Native Menu Bar Application (GUI)
+
+Requires macOS 13.0+ and Xcode / Swift 5.9+:
+
+```bash
+git clone https://github.com/DonJone/macos-task-cleaner-gui.git
+cd macos-task-cleaner-gui
+
+# Build the release bundle
+./scripts/build_app.sh
+
+# Install to Applications
+cp -R build/TaskCleaner.app /Applications/
+open /Applications/TaskCleaner.app
+```
+
+### Option 2: Command-Line Interface (CLI)
+
+Requires Rust toolchain (1.75+):
+
+```bash
+git clone https://github.com/DonJone/macos-task-cleaner-cli.git
+cd macos-task-cleaner-cli
+
+# Compile release binary
+cargo build --release
+
+# Install binary to local path
+cp target/release/mtc ~/.local/bin/
+ln -sf ~/.local/bin/mtc ~/.local/bin/taskcleaner
+```
+
+---
+
+## Usage Guide
+
+### Command-Line Usage (`mtc`)
+
+```bash
+# Launch interactive wizard (Recommended)
+mtc -i
+
+# Pre-flight preview without terminating any processes
+mtc --dry-run
+
+# Structured JSON output for scripting and Raycast extensions
+mtc --json --dry-run
+
+# Add an application to persistent whitelist
+mtc -a "com.google.Chrome"
+
+# Immediate execution of tiered cleanup
+mtc --execute
+```
+
+#### Interactive Console Shortcuts (`mtc -i`)
+
+* `w [indices]`: Add specified applications permanently to the configuration whitelist (e.g. `w 1, 2`).
+* `t [indices]`: Temporarily skip applications for the current cleaning cycle.
+* `c` / `clean`: Confirm and execute smooth tiered cleanup.
+* `f` / `force`: Immediate termination bypassing grace periods (`SIGKILL`).
+* `p` / `protected`: Inspect currently protected applications and whitelist tiers.
+* `r` / `refresh`: Rescan active foreground applications.
+* `q` / `quit`: Cancel and exit safely.
+
+---
+
+## Configuration
+
+Configuration is stored at `~/.config/mtc/config.toml` (compatible with `~/.config/taskcleaner/config.toml`):
+
+```toml
+[general]
+# Polling grace period timeout before falling back to SIGKILL (in milliseconds, default: 400ms)
+grace_period_ms = 400
+
+# Default execution mode (false: execute cleanup; true: dry-run only)
+default_dry_run = false
+
+[whitelist]
+# Whitelist by Bundle Identifier (Recommended)
+bundle_ids = [
+    "com.google.Chrome",
+    "com.spotify.client",
+]
+
+# Whitelist by Application Display Name
+names = [
+    "Telegram",
+    "Slack",
+]
+```
+
+---
+
+## Rust Core Library Usage
+
+To integrate the engine into your own Rust project:
 
 ```toml
 [dependencies]
 macos-task-cleaner-core = { git = "https://github.com/DonJone/macos-task-cleaner-core" }
 ```
-
----
-
-## 核心接口使用示例
 
 ```rust
 use std::time::Duration;
@@ -42,32 +156,20 @@ use macos_task_cleaner_core::{
 };
 
 fn main() {
-    // 1. 初始化四级白名单引擎
-    let (whitelist, config) = WhitelistManager::new(None, &["临时保留应用".to_string()]);
-
-    // 2. 扫描系统前台图形应用
-    let all_apps = scan_foreground_apps();
-
-    // 3. 过滤出待清场应用
-    let targets: Vec<_> = all_apps
+    let (whitelist, _config) = WhitelistManager::new(None, &[]);
+    let apps = scan_foreground_apps();
+    let targets: Vec<_> = apps
         .into_iter()
         .filter(|app| whitelist.check_protection(app).is_none())
         .collect();
 
-    // 4. 执行平滑分级清场
     let report = tiered_terminate(&targets, Duration::from_millis(400), false);
-    println!("清理完成: 成功退出 {} 个应用", report.terminated_sigterm + report.terminated_sigkill);
+    println!("Cleaned {} processes", report.terminated_sigterm + report.terminated_sigkill);
 }
 ```
 
 ---
 
-## 配套工具
+## License
 
-* **命令行交互工具 (CLI)**：请参见 [macos-task-cleaner-cli](https://github.com/DonJone/macos-task-cleaner-cli) (`mtc`)
-
----
-
-## 许可协议
-
-MIT License
+MIT License. Copyright (c) 2026 DonJone.
