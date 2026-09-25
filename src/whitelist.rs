@@ -312,11 +312,18 @@ impl WhitelistManager {
         None
     }
 
-    /// 获取默认配置文件路径: ~/.config/taskcleaner/config.toml
+    /// 获取默认配置文件路径: 优先 ~/.config/mtc/config.toml，兼容回退 ~/.config/taskcleaner/config.toml
     pub fn default_config_path() -> Option<PathBuf> {
-        std::env::var("HOME")
-            .ok()
-            .map(|h| PathBuf::from(h).join(".config/taskcleaner/config.toml"))
+        let home = std::env::var("HOME").ok()?;
+        let mtc_path = PathBuf::from(&home).join(".config/mtc/config.toml");
+        if mtc_path.exists() {
+            return Some(mtc_path);
+        }
+        let legacy_path = PathBuf::from(&home).join(".config/taskcleaner/config.toml");
+        if legacy_path.exists() {
+            return Some(legacy_path);
+        }
+        Some(mtc_path)
     }
 
     /// 从文件加载配置，若文件不存在则返回默认空配置
@@ -349,8 +356,8 @@ impl WhitelistManager {
             fs::create_dir_all(parent)?;
         }
 
-        let template = r#"# macOS Task Cleaner (taskcleaner) 配置文件
-# 文件位置: ~/.config/taskcleaner/config.toml
+        let template = r#"# macOS Task Cleaner (mtc) 配置文件
+# 文件位置: ~/.config/mtc/config.toml (或 ~/.config/taskcleaner/config.toml)
 
 [general]
 # 宽限期轮询超时时长 (单位: 毫秒，默认 400ms)

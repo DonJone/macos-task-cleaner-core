@@ -97,11 +97,11 @@ fn parse_cli_args() -> Result<CliArgs, String> {
 }
 
 fn print_help() {
-    println!("macOS Task Cleaner (taskcleaner) v{}", VERSION);
+    println!("macOS Task Cleaner (mtc) v{}", VERSION);
     println!("轻量级前台任务清场工具 (面向 macOS 的免弹窗、多级白名单任务清理引擎)");
     println!();
     println!("用法:");
-    println!("  taskcleaner [选项]");
+    println!("  mtc [选项]   (或 taskcleaner [选项])");
     println!();
     println!("核心选项:");
     println!("  -i, --interactive         交互式清场向导 (推荐: 支持序号选择、一键添加白名单与确认清场)");
@@ -112,7 +112,7 @@ fn print_help() {
     println!("  -k, --keep <NAME/BUNDLE>  命令行临时追加豁免白名单 (仅对当前进程生效，支持多次传入)");
     println!("  -p, --purge               清场完成后调用 /usr/sbin/purge 强制回收内存缓存");
     println!("  -c, --config <FILE>       指定自定义 TOML 配置文件路径");
-    println!("      --init-config         在 ~/.config/taskcleaner/config.toml 生成默认配置模板");
+    println!("      --init-config         在 ~/.config/mtc/config.toml 生成默认配置模板");
     println!("      --json                以结构化 JSON 格式输出结果 (适配 Raycast / 脚本接入)");
     println!("  -h, --help                显示帮助说明");
     println!("  -v, --version             显示当前版本");
@@ -140,7 +140,7 @@ fn main() {
     }
 
     if cli.show_version {
-        println!("taskcleaner v{}", VERSION);
+        println!("mtc (taskcleaner) v{}", VERSION);
         return;
     }
 

@@ -1,4 +1,4 @@
-# macOS Task Cleaner Core (`taskcleaner`)
+# macOS Task Cleaner Core (`mtc` / `taskcleaner`)
 
 面向 macOS 的轻量级、工程级前台任务清场工具与执行引擎。采用原生 Rust 开发，提供等同于移动端“一键清理后台”的清爽确定性体验。
 
@@ -15,7 +15,7 @@
   * **L1 系统核心层 (Core OS)**：强制保护 Finder、Dock、WindowServer、SystemUIServer 等；
   * **L2 会话终端层 (Context Shell)**：自适应保护当前调用者 PID、父进程 PPID，以及常见终端与 IDE（Ghostty、iTerm2、Terminal、Alacritty、VS Code 等）；
   * **L3 常驻设施层 (Persistent Utilities)**：保护 Raycast、Alfred、Rectangle、输入法（鼠须管、搜狗）与系统监控小组件；
-  * **L4 用户配置层 (User Config & CLI)**：支持 `~/.config/taskcleaner/config.toml` 持久化配置，以及命令行 `-k / --keep` 临时保留。
+  * **L4 用户配置层 (User Config & CLI)**：支持 `~/.config/mtc/config.toml` 持久化配置，以及命令行 `-k / --keep` 临时保留。
 * **预检模式与审计 (Dry-Run & Audit)**：默认提供友好的终端预览报表，同时支持 `--json` 输出结构化数据，方便接入 Raycast Script Command 与 macOS 快捷指令。
 * **极致性能与零运行时依赖**：原生编译为单一 Mach-O 二进制文件（体积 < 1MB），检索与信号派发全流程耗时仅约 10~25ms，内存占用可忽略不计。
 
@@ -31,18 +31,20 @@
 # 调试构建
 cargo build
 
-# 生产级优化构建
+# 生产级优化构建 (将同时生成 mtc 与 taskcleaner 二进制)
 cargo build --release
 ```
 
-编译生成的可执行文件位于 `target/release/taskcleaner`。
+编译生成的可执行文件位于 `target/release/mtc`（与 `target/release/taskcleaner`）。
 
 ### 安装到系统路径
 
 ```bash
-cp target/release/taskcleaner ~/.local/bin/
-# 或
-sudo cp target/release/taskcleaner /usr/local/bin/
+# 复制主命令 mtc 到用户 bin 目录
+cp target/release/mtc ~/.local/bin/
+
+# (可选) 同时创建全称 taskcleaner 软链接
+ln -sf ~/.local/bin/mtc ~/.local/bin/taskcleaner
 ```
 
 ---
@@ -55,9 +57,9 @@ sudo cp target/release/taskcleaner /usr/local/bin/
 
 ```bash
 # 启动交互式向导
-taskcleaner -i
+mtc -i
 # 或
-taskcleaner --interactive
+mtc --interactive
 ```
 
 在交互式会话中：
@@ -72,53 +74,53 @@ taskcleaner --interactive
 
 ```bash
 # 默认预览 (不杀任何进程)
-taskcleaner --dry-run
+mtc --dry-run
 
 # 临时指定保留特定应用 (支持名称或 Bundle ID)
-taskcleaner -k "微信" -k "Google Chrome" --dry-run
+mtc -k "微信" -k "Google Chrome" --dry-run
 
 # 以结构化 JSON 格式输出 (适合脚本集成)
-taskcleaner --json --dry-run
+mtc --json --dry-run
 ```
 
 ### 3. 一键追加白名单 (适用于交付脚本与快速配置)
 
 ```bash
 # 支持按应用显示名称添加
-taskcleaner -a "微信"
+mtc -a "微信"
 
 # 支持按 Bundle ID 添加 (推荐)
-taskcleaner -a "com.spotify.client" -a "com.tencent.xinWeChat"
+mtc -a "com.spotify.client" -a "com.tencent.xinWeChat"
 ```
 
 ### 4. 实质执行清场
 
 ```bash
 # 执行标准三段式平滑清场
-taskcleaner --execute
+mtc --execute
 
 # 跳过宽限期直接强退 (秒杀模式)
-taskcleaner --force
+mtc --force
 
 # 清理后强制回收系统 inactive 内存缓存
-taskcleaner --execute --purge
+mtc --execute --purge
 ```
 
 ### 5. 初始化与管理配置文件
 
 ```bash
-# 生成默认配置文件模板至 ~/.config/taskcleaner/config.toml
-taskcleaner --init-config
+# 生成默认配置文件模板至 ~/.config/mtc/config.toml
+mtc --init-config
 
 # 使用指定的自定义配置文件运行
-taskcleaner -c /path/to/custom-config.toml --dry-run
+mtc -c /path/to/custom-config.toml --dry-run
 ```
 
 ---
 
 ## 配置文件示例
 
-配置文件位于 `~/.config/taskcleaner/config.toml`：
+配置文件优先位于 `~/.config/mtc/config.toml`（亦兼容 `~/.config/taskcleaner/config.toml`）：
 
 ```toml
 [general]
@@ -150,7 +152,7 @@ names = [
 
 ```text
 用法:
-  taskcleaner [选项]
+  mtc [选项]   (或 taskcleaner [选项])
 
 核心选项:
   -i, --interactive         交互式清场向导 (推荐: 支持序号选择、一键添加白名单与确认清场)
@@ -161,7 +163,7 @@ names = [
   -k, --keep <NAME/BUNDLE>  命令行临时追加豁免白名单 (仅对当前进程生效，支持多次传入)
   -p, --purge               清场完成后调用 /usr/sbin/purge 强制回收内存缓存
   -c, --config <FILE>       指定自定义 TOML 配置文件路径
-      --init-config         在 ~/.config/taskcleaner/config.toml 生成默认配置模板
+      --init-config         在 ~/.config/mtc/config.toml 生成默认配置模板
       --json                以结构化 JSON 格式输出结果 (适配 Raycast / 脚本接入)
   -h, --help                显示帮助说明
   -v, --version             显示当前版本
