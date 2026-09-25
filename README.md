@@ -25,7 +25,7 @@ A high-performance, non-intrusive foreground task cleaner and process manager de
   * **L3 Persistent Utilities**: Protects system menu bar tools, window managers, and input methods (Raycast, Alfred, Rectangle, Rime, Sogou).
   * **L4 User Configuration**: Supports persistent rules managed via `~/.config/mtc/config.toml`.
 * **Dual Native Interfaces**:
-  * **Menu Bar Extra (GUI)**: Live running task badge, adaptive window height, individual task termination, and one-click whitelist toggling.
+  * **Menu Bar Extra (GUI)**: Live running task badge, adaptive window height, individual task termination, 24-language automatic localization, and one-click whitelist toggling.
   * **Terminal Wizard (CLI)**: Keyboard-driven interactive console (`mtc -i`) with quick index-based actions, pre-flight dry runs, and JSON output support.
 * **Authentic macOS System Utility Craft**: Follows Apple Human Interface Guidelines with a native monitor screen chassis, subtle technical gridlines, and full light/dark appearance support.
 
