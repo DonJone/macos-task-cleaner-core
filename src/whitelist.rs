@@ -82,6 +82,8 @@ pub struct WhitelistSection {
     pub bundle_ids: Vec<String>,
     #[serde(default)]
     pub names: Vec<String>,
+    #[serde(default)]
+    pub disabled_rules: Vec<String>,
 }
 
 /// 白名单矩阵管理器
@@ -105,6 +107,9 @@ pub struct WhitelistManager {
 
     // L4: CLI 命令行临时指定
     cli_keep_rules: HashSet<String>,
+
+    // 禁用规则集合 (涵盖对 Core 预设的禁用与移除)
+    disabled_rules: HashSet<String>,
 
     pub loaded_config_path: Option<PathBuf>,
 }
@@ -198,6 +203,12 @@ impl WhitelistManager {
             cli_keep_rules.insert(rule.trim().to_string());
         }
 
+        // 初始化禁用规则集合 (用户显式移除的规则，含 Core 预设)
+        let mut disabled_rules = HashSet::new();
+        for rule in &config.whitelist.disabled_rules {
+            disabled_rules.insert(rule.trim().to_string());
+        }
+
         let manager = Self {
             l1_bundle_ids,
             l1_names,
@@ -209,6 +220,7 @@ impl WhitelistManager {
             l4_user_bundle_ids,
             l4_user_names,
             cli_keep_rules,
+            disabled_rules,
             loaded_config_path: config_path,
         };
 
@@ -217,6 +229,16 @@ impl WhitelistManager {
 
     /// 判定目标是否被四级白名单拦截并给出具体理由
     pub fn check_protection(&self, app: &AppTarget) -> Option<WhitelistMatch> {
+        // 0. 优先检查禁用名单 (支持用户移除预设的白名单规则)
+        if self.disabled_rules.contains(&app.bundle_id)
+            || self.disabled_rules.contains(&app.name)
+            || self.disabled_rules.iter().any(|r| {
+                app.name.eq_ignore_ascii_case(r) || app.bundle_id.eq_ignore_ascii_case(r)
+            })
+        {
+            return None;
+        }
+
         // 1. 检查 L2 PID 自身与父进程保护
         if self.l2_pids.contains(&app.pid) {
             return Some(WhitelistMatch {
@@ -410,29 +432,33 @@ names = [
 
         for bid in bundle_ids {
             let trimmed = bid.trim();
-            if !trimmed.is_empty()
-                && !config
+            if !trimmed.is_empty() {
+                config.whitelist.disabled_rules.retain(|d| !d.eq_ignore_ascii_case(trimmed));
+                if !config
                     .whitelist
                     .bundle_ids
                     .iter()
                     .any(|b| b.eq_ignore_ascii_case(trimmed))
-            {
-                config.whitelist.bundle_ids.push(trimmed.to_string());
-                added_count += 1;
+                {
+                    config.whitelist.bundle_ids.push(trimmed.to_string());
+                    added_count += 1;
+                }
             }
         }
 
         for name in names {
             let trimmed = name.trim();
-            if !trimmed.is_empty()
-                && !config
+            if !trimmed.is_empty() {
+                config.whitelist.disabled_rules.retain(|d| !d.eq_ignore_ascii_case(trimmed));
+                if !config
                     .whitelist
                     .names
                     .iter()
                     .any(|n| n.eq_ignore_ascii_case(trimmed))
-            {
-                config.whitelist.names.push(trimmed.to_string());
-                added_count += 1;
+                {
+                    config.whitelist.names.push(trimmed.to_string());
+                    added_count += 1;
+                }
             }
         }
 
@@ -458,6 +484,52 @@ names = [
             Self::append_to_user_config(custom_path, &[], &[trimmed.to_string()])?
         };
         Ok((path, count > 0))
+    }
+
+    /// 自动根据传入标识（Bundle ID 或应用名称）从白名单中移除，若匹配 Core 预设则写入 disabled_rules
+    pub fn remove_identifier_from_config(
+        custom_path: Option<&Path>,
+        identifier: &str,
+    ) -> io::Result<(PathBuf, bool)> {
+        let path = custom_path
+            .map(|p| p.to_path_buf())
+            .or_else(Self::default_config_path)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "无法定位用户 HOME 目录"))?;
+
+        if !path.exists() {
+            Self::generate_default_config_file(Some(&path))?;
+        }
+
+        let content = fs::read_to_string(&path)?;
+        let mut config: TaskCleanerConfig = toml::from_str(&content).unwrap_or_default();
+
+        let trimmed = identifier.trim();
+        let mut modified = false;
+
+        let initial_b_len = config.whitelist.bundle_ids.len();
+        config.whitelist.bundle_ids.retain(|b| !b.eq_ignore_ascii_case(trimmed));
+        if config.whitelist.bundle_ids.len() != initial_b_len {
+            modified = true;
+        }
+
+        let initial_n_len = config.whitelist.names.len();
+        config.whitelist.names.retain(|n| !n.eq_ignore_ascii_case(trimmed));
+        if config.whitelist.names.len() != initial_n_len {
+            modified = true;
+        }
+
+        if !config.whitelist.disabled_rules.iter().any(|d| d.eq_ignore_ascii_case(trimmed)) {
+            config.whitelist.disabled_rules.push(trimmed.to_string());
+            modified = true;
+        }
+
+        if modified {
+            let new_content = toml::to_string_pretty(&config)
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+            fs::write(&path, new_content)?;
+        }
+
+        Ok((path, modified))
     }
 }
 
@@ -578,6 +650,19 @@ mod tests {
         let (config, _) = WhitelistManager::load_config(Some(&config_path));
         assert!(config.whitelist.bundle_ids.contains(&"com.spotify.client".to_string()));
         assert!(config.whitelist.names.contains(&"网易云音乐".to_string()));
+
+        // 测试移除预设 (例如禁用 Ghostty)
+        let res_remove = WhitelistManager::remove_identifier_from_config(Some(&config_path), "com.mitchellh.ghostty");
+        assert!(res_remove.is_ok());
+
+        // 验证加载后 Ghostty 是否被解除保护
+        let (manager, _) = WhitelistManager::new(Some(&config_path), &[]);
+        let ghostty = AppTarget {
+            pid: 101,
+            name: "Ghostty".to_string(),
+            bundle_id: "com.mitchellh.ghostty".to_string(),
+        };
+        assert!(manager.check_protection(&ghostty).is_none());
 
         // 清理临时文件
         let _ = std::fs::remove_dir_all(temp_dir);
