@@ -4,6 +4,15 @@
   <a href="README.md">English</a> | <a href="README_ZH.md">简体中文</a>
 </p>
 
+<p align="left">
+  <a href="https://apple.com/macos"><img src="https://img.shields.io/badge/平台-macOS-000000?logo=apple&logoColor=white" alt="平台: macOS" /></a>
+  <img src="https://img.shields.io/badge/架构-Apple%20Silicon%20%7C%20AMD64-blue" alt="架构: Apple Silicon | AMD64" />
+  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/语言-Rust-dea584?logo=rust&logoColor=white" alt="语言: Rust" /></a>
+  <img src="https://img.shields.io/badge/Rust-1.75%2B-orange?logo=rust&logoColor=white" alt="Rust: 1.75+" />
+  <a href="https://github.com/DonJone/macos-task-cleaner-core/actions"><img src="https://img.shields.io/github/actions/workflow/status/DonJone/macos-task-cleaner-core/ci.yml?label=CI%20构建状态" alt="CI 状态" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/协议-MIT-green" alt="协议: MIT" /></a>
+</p>
+
 面向 macOS 的高性能、非侵入式前台任务清理与进程管理工具集。由 Rust 编写的高精度核心引擎（`macos-task-cleaner-core`）、终端交互向导命令行工具（`mtc`）以及基于原生 SwiftUI/AppKit 开发的状态栏常驻应用（`TaskCleaner.app`）组成。
 
 ---

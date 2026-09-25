@@ -4,6 +4,15 @@
   <a href="README.md">English</a> | <a href="README_ZH.md">简体中文</a>
 </p>
 
+<p align="left">
+  <a href="https://apple.com/macos"><img src="https://img.shields.io/badge/Platform-macOS-000000?logo=apple&logoColor=white" alt="Platform: macOS" /></a>
+  <img src="https://img.shields.io/badge/Architecture-Apple%20Silicon%20%7C%20AMD64-blue" alt="Architecture: Apple Silicon | AMD64" />
+  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Language-Rust-dea584?logo=rust&logoColor=white" alt="Language: Rust" /></a>
+  <img src="https://img.shields.io/badge/Rust-1.75%2B-orange?logo=rust&logoColor=white" alt="Rust: 1.75+" />
+  <a href="https://github.com/DonJone/macos-task-cleaner-core/actions"><img src="https://img.shields.io/github/actions/workflow/status/DonJone/macos-task-cleaner-core/ci.yml?label=CI" alt="CI Status" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT" /></a>
+</p>
+
 A high-performance, non-intrusive foreground task cleaner and process manager designed natively for macOS. Powered by a high-precision Rust core engine (`macos-task-cleaner-core`), an interactive command-line wizard (`mtc`), and a sleek native SwiftUI/AppKit menu bar utility (`TaskCleaner.app`).
 
 ---
