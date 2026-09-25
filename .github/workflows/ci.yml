@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+jobs:
+  check-and-test:
+    name: Test Core Engine (macOS)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Core Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo Check
+        run: cargo check --verbose
+
+      - name: Cargo Test
+        run: cargo test --verbose
