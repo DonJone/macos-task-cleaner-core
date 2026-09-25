@@ -1,4 +1,5 @@
 mod app;
+mod interactive;
 mod preview;
 mod signal;
 mod whitelist;
@@ -9,6 +10,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use app::scan_foreground_apps;
+use interactive::run_interactive_session;
 use preview::{render_dry_run_preview, render_execution_report};
 use signal::tiered_terminate;
 use whitelist::WhitelistManager;
@@ -19,10 +21,12 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 struct CliArgs {
     dry_run: Option<bool>,
     force: bool,
+    interactive: bool,
     purge: bool,
     json: bool,
     config_path: Option<PathBuf>,
     cli_keeps: Vec<String>,
+    add_whitelist: Vec<String>,
     init_config: bool,
     show_help: bool,
     show_version: bool,
@@ -39,6 +43,9 @@ fn parse_cli_args() -> Result<CliArgs, String> {
             }
             "-e" | "--execute" => {
                 cli.dry_run = Some(false);
+            }
+            "-i" | "--interactive" => {
+                cli.interactive = true;
             }
             "-f" | "--force" => {
                 cli.force = true;
@@ -67,6 +74,13 @@ fn parse_cli_args() -> Result<CliArgs, String> {
                     return Err("缺少 --keep 参数值".to_string());
                 }
             }
+            "-a" | "--add-whitelist" => {
+                if let Some(val) = args.next() {
+                    cli.add_whitelist.push(val);
+                } else {
+                    return Err("缺少 --add-whitelist 参数值".to_string());
+                }
+            }
             "-h" | "--help" => {
                 cli.show_help = true;
             }
@@ -90,10 +104,12 @@ fn print_help() {
     println!("  taskcleaner [选项]");
     println!();
     println!("核心选项:");
+    println!("  -i, --interactive         交互式清场向导 (推荐: 支持序号选择、一键添加白名单与确认清场)");
     println!("  -n, --dry-run             预检预览模式 (仅扫描并分析白名单过滤，不发送任何终止信号)");
     println!("  -e, --execute             执行实质清场动作 (执行 SIGTERM -> 轮询 -> SIGKILL 三段式下线)");
     println!("  -f, --force               强制直接秒杀 (跳过宽限期，直接发送 SIGKILL)");
-    println!("  -k, --keep <NAME/BUNDLE>  命令行临时追加豁免白名单 (支持多次传入)");
+    println!("  -a, --add-whitelist <ID>  向永久配置文件追加白名单规则 (支持名称或 Bundle ID，如: -a 微信)");
+    println!("  -k, --keep <NAME/BUNDLE>  命令行临时追加豁免白名单 (仅对当前进程生效，支持多次传入)");
     println!("  -p, --purge               清场完成后调用 /usr/sbin/purge 强制回收内存缓存");
     println!("  -c, --config <FILE>       指定自定义 TOML 配置文件路径");
     println!("      --init-config         在 ~/.config/taskcleaner/config.toml 生成默认配置模板");
@@ -128,7 +144,7 @@ fn main() {
         return;
     }
 
-    // 处理配置文件初始化
+    // 1. 处理配置文件初始化 (--init-config)
     if cli.init_config {
         match WhitelistManager::generate_default_config_file(cli.config_path.as_deref()) {
             Ok(path) => {
@@ -142,23 +158,54 @@ fn main() {
         }
     }
 
-    let scan_start = Instant::now();
+    // 2. 处理直接追加白名单 (-a / --add-whitelist)
+    if !cli.add_whitelist.is_empty() {
+        for ident in &cli.add_whitelist {
+            match WhitelistManager::add_identifier_to_config(cli.config_path.as_deref(), ident) {
+                Ok((saved_path, is_new)) => {
+                    if is_new {
+                        println!("[白名单添加成功] 已将 '{}' 写入配置文件: {}", ident, saved_path.display());
+                    } else {
+                        println!("[白名单已存在] '{}' 已包含在配置文件中: {}", ident, saved_path.display());
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[白名单写入失败] 添加 '{}' 失败: {}", ident, e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        return;
+    }
 
-    // 1. 初始化白名单与用户配置
+    // 3. 加载基础配置与超时时长
     let (whitelist, config) =
         WhitelistManager::new(cli.config_path.as_deref(), &cli.cli_keeps);
+    let grace_period = Duration::from_millis(config.general.grace_period_ms);
+
+    // 4. 交互式模式 (-i / --interactive)
+    if cli.interactive {
+        run_interactive_session(
+            cli.config_path.as_deref(),
+            &cli.cli_keeps,
+            grace_period,
+            cli.purge,
+        );
+        return;
+    }
+
+    // 5. 非交互式流程
+    let scan_start = Instant::now();
 
     // 确定运行模式：CLI 显式指定 > 配置文件指定 > 默认 true
     let is_dry_run = cli
         .dry_run
         .unwrap_or(config.general.default_dry_run);
 
-    let grace_period = Duration::from_millis(config.general.grace_period_ms);
-
-    // 2. 扫描前台 GUI 应用
+    // 扫描前台 GUI 应用
     let scanned_apps = scan_foreground_apps();
 
-    // 3. 应用白名单多级过滤网
+    // 应用白名单多级过滤网
     let mut protected_list = Vec::new();
     let mut target_list = Vec::new();
 
@@ -172,7 +219,7 @@ fn main() {
 
     let scan_duration_ms = scan_start.elapsed().as_secs_f64() * 1000.0;
 
-    // 4. 预检模式 (Dry-Run)
+    // 预检模式 (Dry-Run)
     if is_dry_run {
         render_dry_run_preview(
             &scanned_apps,
@@ -185,11 +232,11 @@ fn main() {
         return;
     }
 
-    // 5. 实质执行清场
+    // 实质执行清场
     let report = tiered_terminate(&target_list, grace_period, cli.force);
     render_execution_report(&report, cli.json);
 
-    // 6. 可选内存整理 (--purge)
+    // 可选内存整理 (--purge)
     if cli.purge {
         if !cli.json {
             println!("\n[内存回收] 正在执行 /usr/sbin/purge 回收 inactive 页面...");

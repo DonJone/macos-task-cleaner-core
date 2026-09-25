@@ -49,10 +49,29 @@ sudo cp target/release/taskcleaner /usr/local/bin/
 
 ## 使用指南
 
-### 1. 预检模式 (查看待清理应用与白名单命中)
+### 1. 交互式向导模式 (推荐)
+
+启动交互式终端面板，支持直观查看前台应用、按序号一键加白名单、临时豁免及确认清场：
 
 ```bash
-# 默认预览
+# 启动交互式向导
+taskcleaner -i
+# 或
+taskcleaner --interactive
+```
+
+在交互式会话中：
+* `w 1, 2` 或 `1 2`：将序号为 1 和 2 的应用永久写入配置文件白名单；
+* `t 1`：本轮清场中临时跳过该应用（不写入文件）；
+* `c` 或 `clean`：确认执行平滑清场；
+* `f` 或 `force`：直接强制秒杀；
+* `p` 或 `protected`：查看当前已被白名单保护的清单；
+* `q` 或 `quit`：取消并安全退出。
+
+### 2. 预检模式 (查看待清理应用与白名单命中)
+
+```bash
+# 默认预览 (不杀任何进程)
 taskcleaner --dry-run
 
 # 临时指定保留特定应用 (支持名称或 Bundle ID)
@@ -62,7 +81,17 @@ taskcleaner -k "微信" -k "Google Chrome" --dry-run
 taskcleaner --json --dry-run
 ```
 
-### 2. 实质执行清场
+### 3. 一键追加白名单 (适用于交付脚本与快速配置)
+
+```bash
+# 支持按应用显示名称添加
+taskcleaner -a "微信"
+
+# 支持按 Bundle ID 添加 (推荐)
+taskcleaner -a "com.spotify.client" -a "com.tencent.xinWeChat"
+```
+
+### 4. 实质执行清场
 
 ```bash
 # 执行标准三段式平滑清场
@@ -75,7 +104,7 @@ taskcleaner --force
 taskcleaner --execute --purge
 ```
 
-### 3. 初始化与管理配置文件
+### 5. 初始化与管理配置文件
 
 ```bash
 # 生成默认配置文件模板至 ~/.config/taskcleaner/config.toml
@@ -124,10 +153,12 @@ names = [
   taskcleaner [选项]
 
 核心选项:
+  -i, --interactive         交互式清场向导 (推荐: 支持序号选择、一键添加白名单与确认清场)
   -n, --dry-run             预检预览模式 (仅扫描并分析白名单过滤，不发送任何终止信号)
   -e, --execute             执行实质清场动作 (执行 SIGTERM -> 轮询 -> SIGKILL 三段式下线)
   -f, --force               强制直接秒杀 (跳过宽限期，直接发送 SIGKILL)
-  -k, --keep <NAME/BUNDLE>  命令行临时追加豁免白名单 (支持多次传入)
+  -a, --add-whitelist <ID>  向永久配置文件追加白名单规则 (支持名称或 Bundle ID，如: -a 微信)
+  -k, --keep <NAME/BUNDLE>  命令行临时追加豁免白名单 (仅对当前进程生效，支持多次传入)
   -p, --purge               清场完成后调用 /usr/sbin/purge 强制回收内存缓存
   -c, --config <FILE>       指定自定义 TOML 配置文件路径
       --init-config         在 ~/.config/taskcleaner/config.toml 生成默认配置模板

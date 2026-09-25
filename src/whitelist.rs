@@ -380,6 +380,78 @@ names = [
         fs::write(&path, template)?;
         Ok(path)
     }
+
+    /// 持久化追加白名单条目到用户配置文件
+    pub fn append_to_user_config(
+        custom_path: Option<&Path>,
+        bundle_ids: &[String],
+        names: &[String],
+    ) -> io::Result<(PathBuf, usize)> {
+        let path = custom_path
+            .map(|p| p.to_path_buf())
+            .or_else(Self::default_config_path)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "无法定位用户 HOME 目录"))?;
+
+        if !path.exists() {
+            Self::generate_default_config_file(Some(&path))?;
+        }
+
+        let content = fs::read_to_string(&path)?;
+        let mut config: TaskCleanerConfig = toml::from_str(&content).unwrap_or_default();
+
+        let mut added_count = 0;
+
+        for bid in bundle_ids {
+            let trimmed = bid.trim();
+            if !trimmed.is_empty()
+                && !config
+                    .whitelist
+                    .bundle_ids
+                    .iter()
+                    .any(|b| b.eq_ignore_ascii_case(trimmed))
+            {
+                config.whitelist.bundle_ids.push(trimmed.to_string());
+                added_count += 1;
+            }
+        }
+
+        for name in names {
+            let trimmed = name.trim();
+            if !trimmed.is_empty()
+                && !config
+                    .whitelist
+                    .names
+                    .iter()
+                    .any(|n| n.eq_ignore_ascii_case(trimmed))
+            {
+                config.whitelist.names.push(trimmed.to_string());
+                added_count += 1;
+            }
+        }
+
+        if added_count > 0 {
+            let new_content = toml::to_string_pretty(&config)
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+            fs::write(&path, new_content)?;
+        }
+
+        Ok((path, added_count))
+    }
+
+    /// 自动根据传入标识（Bundle ID 或应用名称）追加至配置文件
+    pub fn add_identifier_to_config(
+        custom_path: Option<&Path>,
+        identifier: &str,
+    ) -> io::Result<(PathBuf, bool)> {
+        let trimmed = identifier.trim();
+        let is_bundle_id = trimmed.contains('.') && !trimmed.contains(' ');
+        let (path, count) = if is_bundle_id {
+            Self::append_to_user_config(custom_path, &[trimmed.to_string()], &[])?
+        } else {
+            Self::append_to_user_config(custom_path, &[], &[trimmed.to_string()])?
+        };
+        Ok((path, count > 0))
+    }
 }
 
 #[cfg(test)]
@@ -470,5 +542,37 @@ mod tests {
             bundle_id: "com.random.bloatware".to_string(),
         };
         assert!(manager.check_protection(&unknown).is_none());
+    }
+
+    #[test]
+    fn test_append_to_user_config() {
+        let temp_dir = std::env::temp_dir().join(format!("tc_test_{}", std::process::id()));
+        let config_path = temp_dir.join("test_config.toml");
+
+        // 第一次添加 Bundle ID
+        let res1 = WhitelistManager::add_identifier_to_config(Some(&config_path), "com.spotify.client");
+        assert!(res1.is_ok());
+        let (_, is_new1) = res1.unwrap();
+        assert!(is_new1);
+
+        // 重复添加同一个 Bundle ID 应返回 false (已存在)
+        let res2 = WhitelistManager::add_identifier_to_config(Some(&config_path), "com.spotify.client");
+        assert!(res2.is_ok());
+        let (_, is_new2) = res2.unwrap();
+        assert!(!is_new2);
+
+        // 添加应用名称
+        let res3 = WhitelistManager::add_identifier_to_config(Some(&config_path), "网易云音乐");
+        assert!(res3.is_ok());
+        let (_, is_new3) = res3.unwrap();
+        assert!(is_new3);
+
+        // 验证加载
+        let (config, _) = WhitelistManager::load_config(Some(&config_path));
+        assert!(config.whitelist.bundle_ids.contains(&"com.spotify.client".to_string()));
+        assert!(config.whitelist.names.contains(&"网易云音乐".to_string()));
+
+        // 清理临时文件
+        let _ = std::fs::remove_dir_all(temp_dir);
     }
 }
