@@ -1,0 +1,26 @@
+# macOS Task Cleaner (taskcleaner) 配置文件
+# 文件位置: ~/.config/taskcleaner/config.toml
+
+[general]
+# 宽限期轮询超时时长 (单位: 毫秒，默认 400ms)
+grace_period_ms = 400
+
+# 默认是否以 --dry-run 预检模式运行 (true: 默认不杀进程需显式加 -e; false: 默认执行清理)
+default_dry_run = false
+
+[whitelist]
+# 用户自定义白名单 - 按 Bundle Identifier 豁免 (推荐，跨系统语言版本稳定)
+bundle_ids = [
+    # "com.apple.Music",        # 系统自带音乐播放器
+    # "com.spotify.client",      # Spotify 客户端
+    # "com.netease.163music",    # 网易云音乐
+    # "com.tencent.xinWeChat",   # 微信 (若习惯保持常驻后台)
+]
+
+# 用户自定义白名单 - 按应用显示名称豁免
+names = [
+    # "Music",
+    # "音乐",
+    # "Spotify",
+    # "Slack",
+]
