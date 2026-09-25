@@ -9,8 +9,8 @@
   <img src="https://img.shields.io/badge/Architecture-Apple%20Silicon%20%7C%20AMD64-blue" alt="Architecture: Apple Silicon | AMD64" />
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Language-Rust-dea584?logo=rust&logoColor=white" alt="Language: Rust" /></a>
   <img src="https://img.shields.io/badge/Rust-1.75%2B-orange?logo=rust&logoColor=white" alt="Rust: 1.75+" />
-  <a href="https://github.com/DonJone/macos-task-cleaner-core/actions"><img src="https://img.shields.io/github/actions/workflow/status/DonJone/macos-task-cleaner-core/ci.yml?label=CI" alt="CI Status" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GNU%20AGPLv3-blue" alt="License: GNU AGPLv3" /></a>
+  <a href="COMMERCIAL.md"><img src="https://img.shields.io/badge/Commercial-License%20Available-orange" alt="Commercial License Available" /></a>
 </p>
 
 A high-performance, non-intrusive foreground task cleaner and process manager designed natively for macOS. Powered by a high-precision Rust core engine (`macos-task-cleaner-core`), an interactive command-line wizard (`mtc`), and a sleek native SwiftUI/AppKit menu bar utility (`TaskCleaner.app`).
@@ -179,6 +179,12 @@ fn main() {
 
 ---
 
-## License
+## License & Commercial Terms
 
-MIT License. Copyright (c) 2026 DonJone.
+This project is dual-licensed:
+
+1. **Open-Source License**: Licensed under the **GNU Affero General Public License v3.0 (AGPLv3)** for individual, academic, and non-commercial open-source usage. Under this license, any derivative work, modification, or network-accessible service utilizing this codebase must release its complete corresponding source code under the AGPLv3. See [LICENSE](LICENSE) for details.
+2. **Commercial License**: For enterprise deployment, proprietary closed-source bundling, white-labeling, or integration into commercial utilities where AGPLv3 compliance cannot be met, a separate commercial license is required. See [COMMERCIAL.md](COMMERCIAL.md) for licensing terms and acquisition details.
+3. **Trademark Policy**: All product names, logos, and icon assets are protected. Forked distributions must be de-branded. See [TRADEMARK.md](TRADEMARK.md).
+
+Copyright (c) 2026 DonJone. All rights reserved.

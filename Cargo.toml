@@ -3,7 +3,7 @@ name = "macos-task-cleaner-core"
 version = "0.1.0"
 edition = "2024"
 description = "Core library for macOS Task Cleaner: GUI app scanning, tiered termination, and whitelist engine"
-license = "MIT"
+license = "AGPL-3.0-or-later"
 repository = "https://github.com/DonJone/macos-task-cleaner-core"
 
 [dependencies]
