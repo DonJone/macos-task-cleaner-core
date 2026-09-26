@@ -229,17 +229,7 @@ impl WhitelistManager {
 
     /// 判定目标是否被四级白名单拦截并给出具体理由
     pub fn check_protection(&self, app: &AppTarget) -> Option<WhitelistMatch> {
-        // 0. 优先检查禁用名单 (支持用户移除预设的白名单规则)
-        if self.disabled_rules.contains(&app.bundle_id)
-            || self.disabled_rules.contains(&app.name)
-            || self.disabled_rules.iter().any(|r| {
-                app.name.eq_ignore_ascii_case(r) || app.bundle_id.eq_ignore_ascii_case(r)
-            })
-        {
-            return None;
-        }
-
-        // 1. 检查 L2 PID 自身与父进程保护
+        // 1. 检查 L2 PID 自身与父进程保护 (不可协商，避免终止调用者自身)
         if self.l2_pids.contains(&app.pid) {
             return Some(WhitelistMatch {
                 tier: WhitelistTier::L2ContextShell,
@@ -248,7 +238,7 @@ impl WhitelistManager {
             });
         }
 
-        // 2. 检查 L1 系统核心层
+        // 2. 检查 L1 系统核心层 (不可协商，非降级保护)
         if self.l1_bundle_ids.contains(&app.bundle_id) {
             return Some(WhitelistMatch {
                 tier: WhitelistTier::L1CoreOs,
@@ -262,6 +252,16 @@ impl WhitelistManager {
                 tier_label: WhitelistTier::L1CoreOs.label().to_string(),
                 matched_rule: format!("系统核心应用名: {}", app.name),
             });
+        }
+
+        // 3. 检查禁用名单 (支持用户移除预设的白名单规则，如终端、输入法等)
+        if self.disabled_rules.contains(&app.bundle_id)
+            || self.disabled_rules.contains(&app.name)
+            || self.disabled_rules.iter().any(|r| {
+                app.name.eq_ignore_ascii_case(r) || app.bundle_id.eq_ignore_ascii_case(r)
+            })
+        {
+            return None;
         }
 
         // 3. 检查 L2 会话终端与编辑器
@@ -539,7 +539,8 @@ mod tests {
 
     #[test]
     fn test_whitelist_l1_core_os() {
-        let (manager, _) = WhitelistManager::new(None, &[]);
+        let dummy = Path::new("/nonexistent/test/config.toml");
+        let (manager, _) = WhitelistManager::new(Some(dummy), &[]);
         let finder = AppTarget {
             pid: 100,
             name: "访达".to_string(),
@@ -553,7 +554,8 @@ mod tests {
 
     #[test]
     fn test_whitelist_l2_context_shell() {
-        let (manager, _) = WhitelistManager::new(None, &[]);
+        let dummy = Path::new("/nonexistent/test/config.toml");
+        let (manager, _) = WhitelistManager::new(Some(dummy), &[]);
         let ghostty = AppTarget {
             pid: 101,
             name: "Ghostty".to_string(),
@@ -577,7 +579,8 @@ mod tests {
 
     #[test]
     fn test_whitelist_l3_utilities() {
-        let (manager, _) = WhitelistManager::new(None, &[]);
+        let dummy = Path::new("/nonexistent/test/config.toml");
+        let (manager, _) = WhitelistManager::new(Some(dummy), &[]);
         let raycast = AppTarget {
             pid: 102,
             name: "Raycast".to_string(),
@@ -590,8 +593,9 @@ mod tests {
 
     #[test]
     fn test_whitelist_l4_cli_keep() {
+        let dummy = Path::new("/nonexistent/test/config.toml");
         let cli_keeps = vec!["com.google.Chrome".to_string(), "Slack".to_string()];
-        let (manager, _) = WhitelistManager::new(None, &cli_keeps);
+        let (manager, _) = WhitelistManager::new(Some(dummy), &cli_keeps);
 
         let chrome = AppTarget {
             pid: 103,
@@ -614,7 +618,8 @@ mod tests {
 
     #[test]
     fn test_whitelist_unmatched_target() {
-        let (manager, _) = WhitelistManager::new(None, &[]);
+        let dummy = Path::new("/nonexistent/test/config.toml");
+        let (manager, _) = WhitelistManager::new(Some(dummy), &[]);
         let unknown = AppTarget {
             pid: 99999,
             name: "RandomBloatwareApp".to_string(),
