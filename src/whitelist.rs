@@ -58,6 +58,8 @@ pub struct GeneralConfig {
     pub grace_period_ms: u64,
     #[serde(default = "default_dry_run")]
     pub default_dry_run: bool,
+    #[serde(default)]
+    pub language: Option<String>,
 }
 
 impl Default for GeneralConfig {
@@ -65,6 +67,7 @@ impl Default for GeneralConfig {
         Self {
             grace_period_ms: default_grace_period(),
             default_dry_run: default_dry_run(),
+            language: None,
         }
     }
 }
@@ -664,6 +667,40 @@ names = [
         }
 
         Ok((path, modified))
+    }
+
+    /// 更新或保存全局语言偏好到配置文件
+    pub fn set_language_in_config(
+        custom_path: Option<&Path>,
+        lang_code: &str,
+    ) -> io::Result<(PathBuf, bool)> {
+        let (mut config, loaded_path) = Self::load_config(custom_path);
+        let path = loaded_path
+            .or_else(|| custom_path.map(|p| p.to_path_buf()))
+            .or_else(Self::default_config_path)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "无法定位配置文件路径"))?;
+
+        if !path.exists() {
+            Self::generate_default_config_file(Some(&path))?;
+        }
+
+        let is_modified = if lang_code.eq_ignore_ascii_case("auto") {
+            let was_some = config.general.language.is_some();
+            config.general.language = None;
+            was_some
+        } else {
+            let is_diff = config.general.language.as_deref() != Some(lang_code);
+            config.general.language = Some(lang_code.to_string());
+            is_diff
+        };
+
+        if is_modified {
+            let new_content = toml::to_string_pretty(&config)
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+            fs::write(&path, new_content)?;
+        }
+
+        Ok((path, is_modified))
     }
 }
 

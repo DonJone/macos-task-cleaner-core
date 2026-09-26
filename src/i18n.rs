@@ -93,9 +93,20 @@ impl Language {
         }
     }
 
-    /// 自动从 macOS 系统环境（AppleLanguages 配置或 LANG/LC_ALL 环境变量）检测当前语言
+    /// 自动检测系统/终端当前语言偏好 (优先遵循终端 LC_ALL/LC_MESSAGES/LANG 环境变量，其次回退至 macOS 全局 AppleLanguages)
     pub fn detect_system() -> Self {
-        // 1. 尝试从 macOS defaults read -g AppleLanguages 读取当前系统首选语言
+        // 1. 优先检查终端环境变量 (LC_ALL -> LC_MESSAGES -> LANG)
+        if let Ok(lang) = std::env::var("LC_ALL")
+            .or_else(|_| std::env::var("LC_MESSAGES"))
+            .or_else(|_| std::env::var("LANG"))
+        {
+            let trimmed = lang.trim();
+            if !trimmed.is_empty() && trimmed != "C" && trimmed != "POSIX" {
+                return Self::from_locale_str(trimmed);
+            }
+        }
+
+        // 2. 回退从 macOS defaults read -g AppleLanguages 读取系统全局偏好
         if let Ok(output) = std::process::Command::new("/usr/bin/defaults")
             .args(["read", "-g", "AppleLanguages"])
             .output()
@@ -111,11 +122,6 @@ impl Language {
                     }
                 }
             }
-        }
-
-        // 2. 回退检查环境变量 LC_ALL 与 LANG
-        if let Ok(lang) = std::env::var("LC_ALL").or_else(|_| std::env::var("LANG")) {
-            return Self::from_locale_str(&lang);
         }
 
         Self::En
