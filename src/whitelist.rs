@@ -23,14 +23,9 @@ pub enum WhitelistTier {
 }
 
 impl WhitelistTier {
+    /// 默认中文标签 (保留向后兼容)
     pub fn label(&self) -> &'static str {
-        match self {
-            Self::L1CoreOs => "L1:系统核心",
-            Self::L2ContextShell => "L2:会话终端",
-            Self::L3PersistentUtilities => "L3:常驻设施",
-            Self::L4UserConfig => "L4:用户配置",
-            Self::L4CliOverride => "L4:CLI保留",
-        }
+        self.localized_label(crate::i18n::Language::ZhHans)
     }
 }
 
@@ -40,6 +35,12 @@ pub struct WhitelistMatch {
     pub tier: WhitelistTier,
     pub tier_label: String,
     pub matched_rule: String,
+    #[serde(default = "default_tier_id")]
+    pub tier_id: String,
+}
+
+fn default_tier_id() -> String {
+    "unknown".to_string()
 }
 
 /// 用户配置文件结构定义
@@ -226,13 +227,31 @@ impl WhitelistManager {
     }
 
     /// 判定目标是否被四级白名单拦截并给出具体理由
+    /// 判定目标是否被四级白名单拦截并给出具体理由 (默认中文，保留向后兼容)
     pub fn check_protection(&self, app: &AppTarget) -> Option<WhitelistMatch> {
+        self.check_protection_with_lang(app, crate::i18n::Language::ZhHans)
+    }
+
+    /// 判定目标是否被四级白名单拦截并给出指定语言的本地化结果与机器标识符
+    pub fn check_protection_with_lang(
+        &self,
+        app: &AppTarget,
+        lang: crate::i18n::Language,
+    ) -> Option<WhitelistMatch> {
+        let is_zh = matches!(lang, crate::i18n::Language::ZhHans | crate::i18n::Language::ZhHant);
+
         // 1. 检查 L2 PID 自身与祖先会话链路保护 (不可协商，避免误伤调用者会话及其宿主环境)
         if self.l2_pids.contains(&app.pid) {
+            let tier = WhitelistTier::L2ContextShell;
             return Some(WhitelistMatch {
-                tier: WhitelistTier::L2ContextShell,
-                tier_label: WhitelistTier::L2ContextShell.label().to_string(),
-                matched_rule: format!("进程 PID 处于当前调用者会话链路 ({})", app.pid),
+                tier,
+                tier_label: tier.localized_label(lang).to_string(),
+                tier_id: tier.identifier().to_string(),
+                matched_rule: if is_zh {
+                    format!("进程 PID 处于当前调用者会话链路 ({})", app.pid)
+                } else {
+                    format!("PID {} in caller session lineage", app.pid)
+                },
             });
         }
 
@@ -251,72 +270,120 @@ impl WhitelistManager {
 
         // 3. 检查 L1 系统核心层
         if self.l1_bundle_ids.contains(&app.bundle_id) {
+            let tier = WhitelistTier::L1CoreOs;
             return Some(WhitelistMatch {
-                tier: WhitelistTier::L1CoreOs,
-                tier_label: WhitelistTier::L1CoreOs.label().to_string(),
-                matched_rule: format!("系统核心包名: {}", app.bundle_id),
+                tier,
+                tier_label: tier.localized_label(lang).to_string(),
+                tier_id: tier.identifier().to_string(),
+                matched_rule: if is_zh {
+                    format!("系统核心包名: {}", app.bundle_id)
+                } else {
+                    format!("Core OS bundle ID: {}", app.bundle_id)
+                },
             });
         }
         if self.l1_names.contains(&app.name) {
+            let tier = WhitelistTier::L1CoreOs;
             return Some(WhitelistMatch {
-                tier: WhitelistTier::L1CoreOs,
-                tier_label: WhitelistTier::L1CoreOs.label().to_string(),
-                matched_rule: format!("系统核心应用名: {}", app.name),
+                tier,
+                tier_label: tier.localized_label(lang).to_string(),
+                tier_id: tier.identifier().to_string(),
+                matched_rule: if is_zh {
+                    format!("系统核心应用名: {}", app.name)
+                } else {
+                    format!("Core OS app name: {}", app.name)
+                },
             });
         }
 
-        // 3. 检查 L2 会话终端与编辑器
+        // 4. 检查 L2 会话终端与编辑器
         if self.l2_bundle_ids.contains(&app.bundle_id) {
+            let tier = WhitelistTier::L2ContextShell;
             return Some(WhitelistMatch {
-                tier: WhitelistTier::L2ContextShell,
-                tier_label: WhitelistTier::L2ContextShell.label().to_string(),
-                matched_rule: format!("终端/IDE 包名: {}", app.bundle_id),
+                tier,
+                tier_label: tier.localized_label(lang).to_string(),
+                tier_id: tier.identifier().to_string(),
+                matched_rule: if is_zh {
+                    format!("终端/IDE 包名: {}", app.bundle_id)
+                } else {
+                    format!("Terminal/IDE bundle ID: {}", app.bundle_id)
+                },
             });
         }
         if self.l2_names.contains(&app.name) {
+            let tier = WhitelistTier::L2ContextShell;
             return Some(WhitelistMatch {
-                tier: WhitelistTier::L2ContextShell,
-                tier_label: WhitelistTier::L2ContextShell.label().to_string(),
-                matched_rule: format!("终端/IDE 应用名: {}", app.name),
+                tier,
+                tier_label: tier.localized_label(lang).to_string(),
+                tier_id: tier.identifier().to_string(),
+                matched_rule: if is_zh {
+                    format!("终端/IDE 应用名: {}", app.name)
+                } else {
+                    format!("Terminal/IDE app name: {}", app.name)
+                },
             });
         }
 
-        // 4. 检查 L3 基础设施与效率工具
+        // 5. 检查 L3 基础设施与效率工具
         if self.l3_bundle_ids.contains(&app.bundle_id) {
+            let tier = WhitelistTier::L3PersistentUtilities;
             return Some(WhitelistMatch {
-                tier: WhitelistTier::L3PersistentUtilities,
-                tier_label: WhitelistTier::L3PersistentUtilities.label().to_string(),
-                matched_rule: format!("常驻基础设施包名: {}", app.bundle_id),
+                tier,
+                tier_label: tier.localized_label(lang).to_string(),
+                tier_id: tier.identifier().to_string(),
+                matched_rule: if is_zh {
+                    format!("常驻基础设施包名: {}", app.bundle_id)
+                } else {
+                    format!("Persistent utility bundle ID: {}", app.bundle_id)
+                },
             });
         }
         if self.l3_names.contains(&app.name) {
+            let tier = WhitelistTier::L3PersistentUtilities;
             return Some(WhitelistMatch {
-                tier: WhitelistTier::L3PersistentUtilities,
-                tier_label: WhitelistTier::L3PersistentUtilities.label().to_string(),
-                matched_rule: format!("常驻基础设施应用名: {}", app.name),
+                tier,
+                tier_label: tier.localized_label(lang).to_string(),
+                tier_id: tier.identifier().to_string(),
+                matched_rule: if is_zh {
+                    format!("常驻基础设施应用名: {}", app.name)
+                } else {
+                    format!("Persistent utility app name: {}", app.name)
+                },
             });
         }
 
-        // 5. 检查 L4 命令行临时保留 (-k / --keep)
+        // 6. 检查 L4 命令行临时保留 (-k / --keep)
         if self.cli_keep_rules.contains(&app.bundle_id)
             || self.cli_keep_rules.contains(&app.name)
             || self.cli_keep_rules.iter().any(|r| {
                 app.name.eq_ignore_ascii_case(r) || app.bundle_id.eq_ignore_ascii_case(r)
             })
         {
+            let tier = WhitelistTier::L4CliOverride;
             return Some(WhitelistMatch {
-                tier: WhitelistTier::L4CliOverride,
-                tier_label: WhitelistTier::L4CliOverride.label().to_string(),
-                matched_rule: format!("命令行 -k 参数命中: {} / {}", app.name, app.bundle_id),
+                tier,
+                tier_label: tier.localized_label(lang).to_string(),
+                tier_id: tier.identifier().to_string(),
+                matched_rule: if is_zh {
+                    format!("命令行 -k 参数命中: {} / {}", app.name, app.bundle_id)
+                } else {
+                    format!("CLI -k keep rule matched: {} / {}", app.name, app.bundle_id)
+                },
             });
         }
 
-        // 6. 检查 L4 用户配置文件白名单
+        // 7. 检查 L4 用户配置文件白名单
         if self.l4_user_bundle_ids.contains(&app.bundle_id) {
+            let tier = WhitelistTier::L4UserConfig;
             return Some(WhitelistMatch {
-                tier: WhitelistTier::L4UserConfig,
-                tier_label: WhitelistTier::L4UserConfig.label().to_string(),
-                matched_rule: format!("用户配置包名: {}", app.bundle_id),
+                tier,
+                tier_label: tier.localized_label(lang).to_string(),
+                tier_id: tier.identifier().to_string(),
+                matched_rule: if is_zh {
+                    format!("用户配置包名: {}", app.bundle_id)
+                } else {
+                    format!("User config bundle ID: {}", app.bundle_id)
+                },
             });
         }
         if self.l4_user_names.contains(&app.name)
@@ -325,10 +392,16 @@ impl WhitelistManager {
                 .iter()
                 .any(|n| n.eq_ignore_ascii_case(&app.name))
         {
+            let tier = WhitelistTier::L4UserConfig;
             return Some(WhitelistMatch {
-                tier: WhitelistTier::L4UserConfig,
-                tier_label: WhitelistTier::L4UserConfig.label().to_string(),
-                matched_rule: format!("用户配置应用名: {}", app.name),
+                tier,
+                tier_label: tier.localized_label(lang).to_string(),
+                tier_id: tier.identifier().to_string(),
+                matched_rule: if is_zh {
+                    format!("用户配置应用名: {}", app.name)
+                } else {
+                    format!("User config app name: {}", app.name)
+                },
             });
         }
 

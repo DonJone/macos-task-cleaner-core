@@ -241,6 +241,16 @@ pub fn tiered_terminate(
     grace_period: Duration,
     force_immediate: bool,
 ) -> TerminationReport {
+    tiered_terminate_with_lang(targets, grace_period, force_immediate, crate::i18n::Language::ZhHans)
+}
+
+/// 支持指定国际化语言的分级安全终止引擎
+pub fn tiered_terminate_with_lang(
+    targets: &[AppTarget],
+    grace_period: Duration,
+    force_immediate: bool,
+    lang: crate::i18n::Language,
+) -> TerminationReport {
     let start = Instant::now();
     let mut records = Vec::new();
     let mut terminated_sigterm = 0;
@@ -268,10 +278,10 @@ pub fn tiered_terminate(
             failed += 1;
             records.push(ProcessTerminationRecord {
                 app: target.clone(),
-                status: "保护调用者会话链路，跳过终止".to_string(),
+                status: TerminationStatusCode::SkippedCallerLineage.localized_description(lang).to_string(),
                 status_code: TerminationStatusCode::SkippedCallerLineage,
                 exit_signal: None,
-                error_msg: Some(format!("进程 PID {} 属于当前调用者祖先会话链路", target.pid)),
+                error_msg: Some(crate::i18n::CoreMessages::caller_lineage_error(target.pid, lang)),
             });
         } else if WhitelistManager::is_critical_system_daemon(&target.bundle_id)
             || WhitelistManager::is_critical_system_daemon(&target.name)
@@ -279,10 +289,10 @@ pub fn tiered_terminate(
             failed += 1;
             records.push(ProcessTerminationRecord {
                 app: target.clone(),
-                status: "系统底层守护进程受常驻保护，已跳过终止".to_string(),
+                status: TerminationStatusCode::SkippedCriticalDaemon.localized_description(lang).to_string(),
                 status_code: TerminationStatusCode::SkippedCriticalDaemon,
                 exit_signal: None,
-                error_msg: Some("系统底层关键守护服务禁止强制终止".to_string()),
+                error_msg: Some(crate::i18n::CoreMessages::critical_daemon_error(lang).to_string()),
             });
         } else {
             valid_targets.push(target.clone());
@@ -308,7 +318,7 @@ pub fn tiered_terminate(
                     terminated_sigkill += 1;
                     records.push(ProcessTerminationRecord {
                         app: target.clone(),
-                        status: "终止成功".to_string(),
+                        status: TerminationStatusCode::SuccessAppKit.localized_description(lang).to_string(),
                         status_code: TerminationStatusCode::SuccessAppKit,
                         exit_signal: Some("NSApplicationTerminate".to_string()),
                         error_msg: None,
@@ -318,10 +328,10 @@ pub fn tiered_terminate(
                     failed += 1;
                     records.push(ProcessTerminationRecord {
                         app: target.clone(),
-                        status: "终止超时 (访达)".to_string(),
+                        status: TerminationStatusCode::FailedTimeout.localized_description(lang).to_string(),
                         status_code: TerminationStatusCode::FailedTimeout,
                         exit_signal: Some("NSApplicationTerminate".to_string()),
-                        error_msg: Some("访达未能按时响应退出请求，避免发送 SIGKILL 导致 launchd 异常闪回重拉".to_string()),
+                        error_msg: Some(crate::i18n::CoreMessages::finder_timeout_error(lang).to_string()),
                     });
                     continue;
                 }
@@ -332,7 +342,7 @@ pub fn tiered_terminate(
                     terminated_sigkill += 1;
                     records.push(ProcessTerminationRecord {
                         app: target.clone(),
-                        status: "强制终止成功 (SIGKILL)".to_string(),
+                        status: TerminationStatusCode::SuccessSigkill.localized_description(lang).to_string(),
                         status_code: TerminationStatusCode::SuccessSigkill,
                         exit_signal: Some("SIGKILL".to_string()),
                         error_msg: None,
@@ -342,7 +352,7 @@ pub fn tiered_terminate(
                     failed += 1;
                     records.push(ProcessTerminationRecord {
                         app: target.clone(),
-                        status: "强制终止失败 (SIGKILL)".to_string(),
+                        status: TerminationStatusCode::FailedKill.localized_description(lang).to_string(),
                         status_code: TerminationStatusCode::FailedKill,
                         exit_signal: Some("SIGKILL".to_string()),
                         error_msg: Some(e.to_string()),
@@ -377,7 +387,7 @@ pub fn tiered_terminate(
                         failed += 1;
                         records.push(ProcessTerminationRecord {
                             app: target.clone(),
-                            status: "退出派发失败".to_string(),
+                            status: TerminationStatusCode::FailedDispatch.localized_description(lang).to_string(),
                             status_code: TerminationStatusCode::FailedDispatch,
                             exit_signal: None,
                             error_msg: Some(e.to_string()),
@@ -388,7 +398,7 @@ pub fn tiered_terminate(
                 terminated_sigterm += 1;
                 records.push(ProcessTerminationRecord {
                     app: target.clone(),
-                    status: "终止成功".to_string(),
+                    status: TerminationStatusCode::SuccessAppKit.localized_description(lang).to_string(),
                     status_code: TerminationStatusCode::SuccessAppKit,
                     exit_signal: Some("NSApplicationTerminate".to_string()),
                     error_msg: None,
@@ -403,7 +413,7 @@ pub fn tiered_terminate(
                     failed += 1;
                     records.push(ProcessTerminationRecord {
                         app: target.clone(),
-                        status: "权限拒绝".to_string(),
+                        status: TerminationStatusCode::FailedPermissionDenied.localized_description(lang).to_string(),
                         status_code: TerminationStatusCode::FailedPermissionDenied,
                         exit_signal: Some("SIGTERM".to_string()),
                         error_msg: Some(e.to_string()),
@@ -414,7 +424,7 @@ pub fn tiered_terminate(
                     terminated_sigterm += 1;
                     records.push(ProcessTerminationRecord {
                         app: target.clone(),
-                        status: "终止成功".to_string(),
+                        status: TerminationStatusCode::SuccessSigterm.localized_description(lang).to_string(),
                         status_code: TerminationStatusCode::SuccessSigterm,
                         exit_signal: Some("SIGTERM".to_string()),
                         error_msg: None,
@@ -444,7 +454,7 @@ pub fn tiered_terminate(
                 };
                 records.push(ProcessTerminationRecord {
                     app: item,
-                    status: "终止成功".to_string(),
+                    status: code.localized_description(lang).to_string(),
                     status_code: code,
                     exit_signal: Some(exit_sig.to_string()),
                     error_msg: None,
@@ -463,7 +473,7 @@ pub fn tiered_terminate(
                 terminated_sigterm += 1;
                 records.push(ProcessTerminationRecord {
                     app: stubborn_app,
-                    status: "终止成功".to_string(),
+                    status: TerminationStatusCode::SuccessAppKit.localized_description(lang).to_string(),
                     status_code: TerminationStatusCode::SuccessAppKit,
                     exit_signal: Some("NSApplicationTerminate".to_string()),
                     error_msg: None,
@@ -472,10 +482,10 @@ pub fn tiered_terminate(
                 failed += 1;
                 records.push(ProcessTerminationRecord {
                     app: stubborn_app,
-                    status: "终止超时 (访达)".to_string(),
+                    status: TerminationStatusCode::FailedTimeout.localized_description(lang).to_string(),
                     status_code: TerminationStatusCode::FailedTimeout,
                     exit_signal: Some("NSApplicationTerminate".to_string()),
-                    error_msg: Some("访达未能按时响应退出请求，避免发送 SIGKILL 导致 launchd 异常闪回重拉".to_string()),
+                    error_msg: Some(crate::i18n::CoreMessages::finder_timeout_error(lang).to_string()),
                 });
             }
             continue;
@@ -486,7 +496,7 @@ pub fn tiered_terminate(
             terminated_sigterm += 1;
             records.push(ProcessTerminationRecord {
                 app: stubborn_app,
-                status: "终止成功".to_string(),
+                status: TerminationStatusCode::SuccessSigterm.localized_description(lang).to_string(),
                 status_code: TerminationStatusCode::SuccessSigterm,
                 exit_signal: Some("SIGTERM".to_string()),
                 error_msg: None,
@@ -499,7 +509,7 @@ pub fn tiered_terminate(
                 terminated_sigkill += 1;
                 records.push(ProcessTerminationRecord {
                     app: stubborn_app,
-                    status: "强制终止成功 (SIGKILL)".to_string(),
+                    status: TerminationStatusCode::SuccessSigkill.localized_description(lang).to_string(),
                     status_code: TerminationStatusCode::SuccessSigkill,
                     exit_signal: Some("SIGKILL".to_string()),
                     error_msg: None,
@@ -509,7 +519,7 @@ pub fn tiered_terminate(
                 failed += 1;
                 records.push(ProcessTerminationRecord {
                     app: stubborn_app,
-                    status: "强制终止失败 (SIGKILL)".to_string(),
+                    status: TerminationStatusCode::FailedKill.localized_description(lang).to_string(),
                     status_code: TerminationStatusCode::FailedKill,
                     exit_signal: Some("SIGKILL".to_string()),
                     error_msg: Some(e.to_string()),
@@ -529,23 +539,33 @@ pub fn tiered_terminate(
     }
 }
 
-/// 按照指定的清理模式执行终止流程
-pub fn terminate_with_mode(
+/// 按照指定的清理模式执行终止流程 (支持指定语言)
+pub fn terminate_with_mode_with_lang(
     targets: &[AppTarget],
     grace_period: Duration,
     mode: TerminationMode,
+    lang: crate::i18n::Language,
 ) -> TerminationReport {
     match mode {
-        TerminationMode::Standard => tiered_terminate(targets, grace_period, false),
-        TerminationMode::ForceImmediate => tiered_terminate(targets, grace_period, true),
+        TerminationMode::Standard => tiered_terminate_with_lang(targets, grace_period, false, lang),
+        TerminationMode::ForceImmediate => tiered_terminate_with_lang(targets, grace_period, true, lang),
         TerminationMode::StandardWithPurge => {
-            let mut rep = tiered_terminate(targets, grace_period, false);
+            let mut rep = tiered_terminate_with_lang(targets, grace_period, false, lang);
             if let Ok(()) = purge_system_cache() {
                 rep.cache_purged = true;
             }
             rep
         }
     }
+}
+
+/// 按照指定的清理模式执行终止流程 (默认中文，保留向后兼容)
+pub fn terminate_with_mode(
+    targets: &[AppTarget],
+    grace_period: Duration,
+    mode: TerminationMode,
+) -> TerminationReport {
+    terminate_with_mode_with_lang(targets, grace_period, mode, crate::i18n::Language::ZhHans)
 }
 
 #[cfg(test)]
