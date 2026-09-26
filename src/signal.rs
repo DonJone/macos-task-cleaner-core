@@ -128,7 +128,7 @@ pub fn tiered_terminate(
                     terminated_sigkill += 1;
                     records.push(ProcessTerminationRecord {
                         app: target.clone(),
-                        status: "强制退出成功".to_string(),
+                        status: "终止成功".to_string(),
                         exit_signal: Some("NSApplicationTerminate".to_string()),
                         error_msg: None,
                     });
@@ -141,7 +141,7 @@ pub fn tiered_terminate(
                     terminated_sigkill += 1;
                     records.push(ProcessTerminationRecord {
                         app: target.clone(),
-                        status: "强制退出成功".to_string(),
+                        status: "强制终止成功 (SIGKILL)".to_string(),
                         exit_signal: Some("SIGKILL".to_string()),
                         error_msg: None,
                     });
@@ -150,7 +150,7 @@ pub fn tiered_terminate(
                     failed += 1;
                     records.push(ProcessTerminationRecord {
                         app: target.clone(),
-                        status: "强制退出失败".to_string(),
+                        status: "强制终止失败 (SIGKILL)".to_string(),
                         exit_signal: Some("SIGKILL".to_string()),
                         error_msg: Some(e.to_string()),
                     });
@@ -193,7 +193,7 @@ pub fn tiered_terminate(
                 terminated_sigterm += 1;
                 records.push(ProcessTerminationRecord {
                     app: target.clone(),
-                    status: "平滑下线成功".to_string(),
+                    status: "终止成功".to_string(),
                     exit_signal: Some("NSApplicationTerminate".to_string()),
                     error_msg: None,
                 });
@@ -217,7 +217,7 @@ pub fn tiered_terminate(
                     terminated_sigterm += 1;
                     records.push(ProcessTerminationRecord {
                         app: target.clone(),
-                        status: "平滑下线成功".to_string(),
+                        status: "终止成功".to_string(),
                         exit_signal: Some("SIGTERM".to_string()),
                         error_msg: None,
                     });
@@ -246,7 +246,7 @@ pub fn tiered_terminate(
                 };
                 records.push(ProcessTerminationRecord {
                     app: item,
-                    status: "平滑下线成功".to_string(),
+                    status: "终止成功".to_string(),
                     exit_signal: Some(exit_sig.to_string()),
                     error_msg: None,
                 });
@@ -262,7 +262,7 @@ pub fn tiered_terminate(
                 terminated_sigkill += 1;
                 records.push(ProcessTerminationRecord {
                     app: stubborn_app,
-                    status: "兜底强退成功".to_string(),
+                    status: "强制终止成功 (SIGKILL)".to_string(),
                     exit_signal: Some("SIGKILL".to_string()),
                     error_msg: None,
                 });
@@ -271,7 +271,7 @@ pub fn tiered_terminate(
                 failed += 1;
                 records.push(ProcessTerminationRecord {
                     app: stubborn_app,
-                    status: "强退失败".to_string(),
+                    status: "强制终止失败 (SIGKILL)".to_string(),
                     exit_signal: Some("SIGKILL".to_string()),
                     error_msg: Some(e.to_string()),
                 });
