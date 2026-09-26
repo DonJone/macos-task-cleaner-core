@@ -9,7 +9,6 @@
   <img src="https://img.shields.io/badge/架构-Apple%20Silicon%20%7C%20AMD64-blue" alt="架构: Apple Silicon | AMD64" />
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/底层引擎-Rust%201.75%2B-dea584?logo=rust&logoColor=white" alt="底层引擎: Rust 1.75+" /></a>
   <a href="https://swift.org/"><img src="https://img.shields.io/badge/界面开发-SwiftUI%20%7C%20AppKit-F05138?logo=swift&logoColor=white" alt="界面开发: SwiftUI | AppKit" /></a>
-  <a href="https://brew.sh/"><img src="https://img.shields.io/badge/Homebrew-支持%20Tap%20安装-orange?logo=homebrew&logoColor=white" alt="Homebrew: 支持 Tap 安装" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/开源协议-GNU%20AGPLv3-blue" alt="开源协议: GNU AGPLv3" /></a>
   <a href="COMMERCIAL.md"><img src="https://img.shields.io/badge/商业许可-可授权-orange" alt="商业许可: 可授权" /></a>
 </p>
@@ -62,29 +61,14 @@
 
 ## 快速安装与使用
 
-### 方式一：通过 Homebrew 安装 (推荐)
-
-添加官方 Tap 仓库并一键安装：
-
-```bash
-# 添加官方 Tap 软件源
-brew tap macos-task-cleaner/tap
-
-# 安装图形状态栏客户端 (内置完整命令行工具)
-brew install --cask task-cleaner
-
-# 或仅安装独立命令行工具
-brew install mtc
-```
-
-### 方式二：下载预编译版本 (DMG / 压缩包)
+### 方式一：下载预编译版本 (DMG / 压缩包)
 
 从 GitHub Releases 页面直接下载预编译二进制：
 
 * **图形客户端 (GUI)**：前往 [Task Cleaner GUI Releases](https://github.com/macos-task-cleaner/macos-task-cleaner-gui/releases/latest) 下载 `TaskCleaner-macOS-arm64.dmg` 或 `TaskCleaner-macOS-universal.dmg`，双击打开后拖拽至 `应用程序 (Applications)` 目录。
 * **命令行客户端 (CLI)**：前往 [Task Cleaner CLI Releases](https://github.com/macos-task-cleaner/macos-task-cleaner-cli/releases/latest) 下载 `mtc-macos-arm64.tar.gz` 或 `mtc-macos-universal.tar.gz`，解压后放置于 `/usr/local/bin/` 或 `~/.local/bin/` 目录下。
 
-### 方式三：源码编译安装
+### 方式二：源码编译安装
 
 #### 编译图形客户端 (`TaskCleaner.app`)
 

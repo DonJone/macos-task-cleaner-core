@@ -9,7 +9,6 @@
   <img src="https://img.shields.io/badge/Architecture-Apple%20Silicon%20%7C%20AMD64-blue" alt="Architecture: Apple Silicon | AMD64" />
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Engine-Rust%201.75%2B-dea584?logo=rust&logoColor=white" alt="Engine: Rust 1.75+" /></a>
   <a href="https://swift.org/"><img src="https://img.shields.io/badge/UI-SwiftUI%20%7C%20AppKit-F05138?logo=swift&logoColor=white" alt="UI: SwiftUI | AppKit" /></a>
-  <a href="https://brew.sh/"><img src="https://img.shields.io/badge/Homebrew-Tap%20Available-orange?logo=homebrew&logoColor=white" alt="Homebrew: Tap Available" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-GNU%20AGPLv3-blue" alt="License: GNU AGPLv3" /></a>
   <a href="COMMERCIAL.md"><img src="https://img.shields.io/badge/Commercial-License%20Available-orange" alt="Commercial License Available" /></a>
 </p>
@@ -62,29 +61,14 @@ The project is structured into three decoupled, complementary components:
 
 ## Quick Start & Installation
 
-### Option 1: Homebrew (Recommended)
-
-Install directly via the official Homebrew Tap:
-
-```bash
-# Add official tap repository
-brew tap macos-task-cleaner/tap
-
-# Install Native Menu Bar Application (includes embedded CLI tool)
-brew install --cask task-cleaner
-
-# Or install standalone Command-Line Tool only
-brew install mtc
-```
-
-### Option 2: Pre-Built Releases (DMG & Archive)
+### Option 1: Pre-Built Releases (DMG & Archive)
 
 Download pre-compiled binaries from GitHub Releases:
 
 * **GUI App**: Download `TaskCleaner-macOS-arm64.dmg` or `TaskCleaner-macOS-universal.dmg` from [Task Cleaner GUI Releases](https://github.com/macos-task-cleaner/macos-task-cleaner-gui/releases/latest). Open the disk image and drag `Task Cleaner.app` to your `/Applications` directory.
 * **CLI Binary**: Download `mtc-macos-arm64.tar.gz` or `mtc-macos-universal.tar.gz` from [Task Cleaner CLI Releases](https://github.com/macos-task-cleaner/macos-task-cleaner-cli/releases/latest). Extract and place `mtc` into `/usr/local/bin/` or `~/.local/bin/`.
 
-### Option 3: Build from Source
+### Option 2: Build from Source
 
 #### Building the GUI App (`TaskCleaner.app`)
 
