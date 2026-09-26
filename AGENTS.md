@@ -34,15 +34,17 @@ This document defines the architectural conventions, engineering rules, and hard
 ## 3. Engineering Constraints & Rules
 
 ### A. 4-Tier Whitelist Defense Matrix
-* **L1 Core OS**: Non-negotiable system processes (`Finder`, `Dock`, `WindowServer`, `SystemUIServer`, `ControlCenter`, `NotificationCenter`, `loginwindow`). Must always be protected and can never be disabled via `disabled_rules` or removed via `remove_identifier_from_config` (which returns `PermissionDenied`). Managed by macOS `launchd` with `KeepAlive: true`.
-* **L2 Context Shell**: Calling process (PID), parent process (PPID), active shell sessions, and development environments (Terminal, Ghostty, iTerm2, Alacritty, VS Code). Must automatically resolve caller lineage to prevent terminating the user's terminal.
+* **L1 Core OS**:
+  - **Critical System Daemons**: `Dock`, `WindowServer`, `SystemUIServer`, `ControlCenter`, `NotificationCenter`, `loginwindow`. These maintain the OS session and window compositor; they are strictly non-terminable and cannot be removed from protection via `remove_identifier_from_config` (which returns `PermissionDenied`).
+  - **Finder (访达)**: Protected in L1 by default. Unlike system daemons, Finder is a regular GUI application. Users are permitted to remove Finder from the whitelist or terminate it explicitly.
+* **L2 Context Shell**: Calling process (PID), parent process (PPID), active shell sessions, and development environments (Terminal, Ghostty, iTerm2, Alacritty, VS Code). Automatically resolves caller lineage to prevent terminating the user's terminal.
 * **L3 Persistent Utilities**: Menu bar utilities, window managers, and input methods (Raycast, Alfred, Rectangle, Rime, Sogou).
 * **L4 User Configuration**: Persistent rules defined in `~/.config/taskcleaner/config.toml` or CLI overrides (`-k` / `--keep`).
 
-### B. POSIX Termination Safety & Core Interceptor
-* **L1 & Lineage Interception**: Before dispatching POSIX signals, `tiered_terminate` intercepts and skips any targets matching `is_l1_core_os` or caller PID/PPID, preventing unintended signals to system daemons or active shells.
-* **Sequence**: Always issue `SIGTERM` first, poll process existence across the configured grace period (default 400ms), and escalate to `SIGKILL` only if the process remains unresponsive.
-* **Non-Intrusive Execution**: Bypass blocking modal dialogs by dispatching POSIX signals directly rather than invoking UI-level quit actions.
+### B. POSIX & Native AppKit Termination Safety
+* **Finder & launchd KeepAlive**: Sending POSIX signals (`SIGTERM` / `SIGKILL`) to Finder causes `launchd` to interpret the exit as an abnormal crash, immediately respawning it ("关一下再闪回来"). To terminate Finder cleanly without respawn, `tiered_terminate` dispatches native AppKit `NSRunningApplication.terminate()`, which informs `launchd` of an orderly voluntary quit.
+* **Non-Finder Apps**: Use POSIX `SIGTERM` first, poll process existence across the configured grace period (default 400ms), and escalate to `SIGKILL` only if unresponsive, bypassing blocking modal dialogs.
+* **Lineage & Critical Daemon Interception**: Before signal dispatch, `tiered_terminate` intercepts caller PID/PPID and critical system daemons, preventing accidental termination of system sessions or user shells.
 
 ### C. Testing & Verification
 * Run `cargo test` after any modifications to `whitelist.rs`, `signal.rs`, or `models.rs`.

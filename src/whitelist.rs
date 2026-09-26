@@ -238,7 +238,20 @@ impl WhitelistManager {
             });
         }
 
-        // 2. 检查 L1 系统核心层 (不可协商，非降级保护)
+        // 2. 检查禁用名单 (支持用户移除预设的白名单规则，如终端、输入法或访达)
+        // 底层关键守护进程（Dock, WindowServer 等）禁止被禁用
+        if !Self::is_critical_system_daemon(&app.bundle_id) && !Self::is_critical_system_daemon(&app.name) {
+            if self.disabled_rules.contains(&app.bundle_id)
+                || self.disabled_rules.contains(&app.name)
+                || self.disabled_rules.iter().any(|r| {
+                    app.name.eq_ignore_ascii_case(r) || app.bundle_id.eq_ignore_ascii_case(r)
+                })
+            {
+                return None;
+            }
+        }
+
+        // 3. 检查 L1 系统核心层
         if self.l1_bundle_ids.contains(&app.bundle_id) {
             return Some(WhitelistMatch {
                 tier: WhitelistTier::L1CoreOs,
@@ -252,16 +265,6 @@ impl WhitelistManager {
                 tier_label: WhitelistTier::L1CoreOs.label().to_string(),
                 matched_rule: format!("系统核心应用名: {}", app.name),
             });
-        }
-
-        // 3. 检查禁用名单 (支持用户移除预设的白名单规则，如终端、输入法等)
-        if self.disabled_rules.contains(&app.bundle_id)
-            || self.disabled_rules.contains(&app.name)
-            || self.disabled_rules.iter().any(|r| {
-                app.name.eq_ignore_ascii_case(r) || app.bundle_id.eq_ignore_ascii_case(r)
-            })
-        {
-            return None;
         }
 
         // 3. 检查 L2 会话终端与编辑器
@@ -348,7 +351,32 @@ impl WhitelistManager {
         Some(mtc_path)
     }
 
-    /// 判定指定标识符（Bundle ID 或应用名）是否属于不可协商的 L1 系统核心进程
+    /// 判定指定标识符是否属于底层硬核系统守护进程（如 WindowServer, loginwindow, Dock 等）
+    /// 这类进程直接维系系统会话与窗口合成器，绝对不可被终止或移出保护名单。
+    /// （注意：Finder 属于常规 GUI 文件管理器，支持原生 AppKit 安全退出，不在此禁制内）
+    pub fn is_critical_system_daemon(identifier: &str) -> bool {
+        let trimmed = identifier.trim();
+        let daemon_bundles = [
+            "com.apple.dock",
+            "com.apple.WindowManager",
+            "com.apple.systemuiserver",
+            "com.apple.controlcenter",
+            "com.apple.notificationcenterui",
+            "com.apple.loginwindow",
+        ];
+        let daemon_names = [
+            "Dock",
+            "WindowServer",
+            "SystemUIServer",
+            "ControlCenter",
+            "NotificationCenter",
+            "loginwindow",
+        ];
+        daemon_bundles.iter().any(|b| b.eq_ignore_ascii_case(trimmed))
+            || daemon_names.iter().any(|n| n.eq_ignore_ascii_case(trimmed))
+    }
+
+    /// 判定指定标识符（Bundle ID 或应用名）是否属于 L1 系统核心默认保护范围（包含 Finder、Dock 等）
     pub fn is_l1_core_os(identifier: &str) -> bool {
         let trimmed = identifier.trim();
         let l1_bundles = [
@@ -384,8 +412,8 @@ impl WhitelistManager {
             if p.exists() {
                 if let Ok(content) = fs::read_to_string(p) {
                     if let Ok(mut config) = toml::from_str::<TaskCleanerConfig>(&content) {
-                        // 强制过滤任何试图禁用 L1 系统核心进程的规则
-                        config.whitelist.disabled_rules.retain(|r| !Self::is_l1_core_os(r));
+                        // 强制过滤任何试图禁用底层关键守护进程的规则（允许禁用 Finder）
+                        config.whitelist.disabled_rules.retain(|r| !Self::is_critical_system_daemon(r));
                         return (config, Some(p.clone()));
                     }
                 }
@@ -520,10 +548,10 @@ names = [
         identifier: &str,
     ) -> io::Result<(PathBuf, bool)> {
         let trimmed = identifier.trim();
-        if Self::is_l1_core_os(trimmed) {
+        if Self::is_critical_system_daemon(trimmed) {
             return Err(io::Error::new(
                 io::ErrorKind::PermissionDenied,
-                format!("系统核心应用 ({}) 属于非降级保护层，禁止从白名单移除", trimmed),
+                format!("系统底层守护服务 ({}) 属于核心常驻体系，禁止从白名单移除", trimmed),
             ));
         }
 
@@ -709,16 +737,27 @@ mod tests {
     }
 
     #[test]
-    fn test_cannot_remove_l1_core_os() {
-        let temp_dir = std::env::temp_dir().join(format!("tc_l1_test_{}", std::process::id()));
+    fn test_cannot_remove_critical_daemons_and_can_remove_finder() {
+        let temp_dir = std::env::temp_dir().join(format!("tc_crit_test_{}", std::process::id()));
         let config_path = temp_dir.join("test_config.toml");
 
-        let res_finder = WhitelistManager::remove_identifier_from_config(Some(&config_path), "com.apple.finder");
-        assert!(res_finder.is_err());
-        assert_eq!(res_finder.unwrap_err().kind(), std::io::ErrorKind::PermissionDenied);
-
+        // Dock 是关键底层守护进程，禁止移除
         let res_dock = WhitelistManager::remove_identifier_from_config(Some(&config_path), "Dock");
         assert!(res_dock.is_err());
+        assert_eq!(res_dock.unwrap_err().kind(), std::io::ErrorKind::PermissionDenied);
+
+        // Finder 允许被移除（进入 disabled_rules）
+        let res_finder = WhitelistManager::remove_identifier_from_config(Some(&config_path), "com.apple.finder");
+        assert!(res_finder.is_ok());
+
+        // 验证加载后 Finder 变为非受保护目标
+        let (manager, _) = WhitelistManager::new(Some(&config_path), &[]);
+        let finder_app = AppTarget {
+            pid: 9999,
+            name: "Finder".to_string(),
+            bundle_id: "com.apple.finder".to_string(),
+        };
+        assert!(manager.check_protection(&finder_app).is_none());
 
         let _ = std::fs::remove_dir_all(temp_dir);
     }

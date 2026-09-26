@@ -1,5 +1,32 @@
-use objc2_app_kit::{NSApplicationActivationPolicy, NSWorkspace};
+use objc2_app_kit::{NSApplicationActivationPolicy, NSRunningApplication, NSWorkspace};
 use serde::{Deserialize, Serialize};
+
+pub fn terminate_via_appkit(pid: i32) -> bool {
+    if let Some(app) = NSRunningApplication::runningApplicationWithProcessIdentifier(pid) {
+        app.terminate()
+    } else {
+        false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_terminate_via_appkit_finder() {
+        // If Finder is running, test terminating it cleanly
+        let apps = scan_foreground_apps();
+        if let Some(finder) = apps.iter().find(|a| a.bundle_id == "com.apple.finder") {
+            let ok = terminate_via_appkit(finder.pid);
+            assert!(ok);
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            // Ensure Finder is NOT alive
+            let alive = crate::signal::is_process_alive(finder.pid);
+            assert!(!alive, "Finder should be completely terminated without respawning");
+        }
+    }
+}
 
 /// 目标进程结构定义
 #[derive(Debug, Clone, Serialize, Deserialize)]
