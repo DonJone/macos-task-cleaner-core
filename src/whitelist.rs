@@ -348,6 +348,32 @@ impl WhitelistManager {
         Some(mtc_path)
     }
 
+    /// 判定指定标识符（Bundle ID 或应用名）是否属于不可协商的 L1 系统核心进程
+    pub fn is_l1_core_os(identifier: &str) -> bool {
+        let trimmed = identifier.trim();
+        let l1_bundles = [
+            "com.apple.finder",
+            "com.apple.dock",
+            "com.apple.WindowManager",
+            "com.apple.systemuiserver",
+            "com.apple.controlcenter",
+            "com.apple.notificationcenterui",
+            "com.apple.loginwindow",
+        ];
+        let l1_names = [
+            "Finder",
+            "访达",
+            "Dock",
+            "WindowServer",
+            "SystemUIServer",
+            "ControlCenter",
+            "NotificationCenter",
+            "loginwindow",
+        ];
+        l1_bundles.iter().any(|b| b.eq_ignore_ascii_case(trimmed))
+            || l1_names.iter().any(|n| n.eq_ignore_ascii_case(trimmed))
+    }
+
     /// 从文件加载配置，若文件不存在则返回默认空配置
     pub fn load_config(custom_path: Option<&Path>) -> (TaskCleanerConfig, Option<PathBuf>) {
         let path = custom_path
@@ -357,7 +383,9 @@ impl WhitelistManager {
         if let Some(ref p) = path {
             if p.exists() {
                 if let Ok(content) = fs::read_to_string(p) {
-                    if let Ok(config) = toml::from_str::<TaskCleanerConfig>(&content) {
+                    if let Ok(mut config) = toml::from_str::<TaskCleanerConfig>(&content) {
+                        // 强制过滤任何试图禁用 L1 系统核心进程的规则
+                        config.whitelist.disabled_rules.retain(|r| !Self::is_l1_core_os(r));
                         return (config, Some(p.clone()));
                     }
                 }
@@ -491,6 +519,14 @@ names = [
         custom_path: Option<&Path>,
         identifier: &str,
     ) -> io::Result<(PathBuf, bool)> {
+        let trimmed = identifier.trim();
+        if Self::is_l1_core_os(trimmed) {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                format!("系统核心应用 ({}) 属于非降级保护层，禁止从白名单移除", trimmed),
+            ));
+        }
+
         let path = custom_path
             .map(|p| p.to_path_buf())
             .or_else(Self::default_config_path)
@@ -503,7 +539,6 @@ names = [
         let content = fs::read_to_string(&path)?;
         let mut config: TaskCleanerConfig = toml::from_str(&content).unwrap_or_default();
 
-        let trimmed = identifier.trim();
         let mut modified = false;
 
         let initial_b_len = config.whitelist.bundle_ids.len();
@@ -670,6 +705,21 @@ mod tests {
         assert!(manager.check_protection(&ghostty).is_none());
 
         // 清理临时文件
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_cannot_remove_l1_core_os() {
+        let temp_dir = std::env::temp_dir().join(format!("tc_l1_test_{}", std::process::id()));
+        let config_path = temp_dir.join("test_config.toml");
+
+        let res_finder = WhitelistManager::remove_identifier_from_config(Some(&config_path), "com.apple.finder");
+        assert!(res_finder.is_err());
+        assert_eq!(res_finder.unwrap_err().kind(), std::io::ErrorKind::PermissionDenied);
+
+        let res_dock = WhitelistManager::remove_identifier_from_config(Some(&config_path), "Dock");
+        assert!(res_dock.is_err());
+
         let _ = std::fs::remove_dir_all(temp_dir);
     }
 }

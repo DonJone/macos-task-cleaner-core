@@ -34,17 +34,18 @@ This document defines the architectural conventions, engineering rules, and hard
 ## 3. Engineering Constraints & Rules
 
 ### A. 4-Tier Whitelist Defense Matrix
-* **L1 Core OS**: Non-negotiable system processes (Finder, Dock, WindowServer, SystemUIServer, loginwindow). Must always be protected.
+* **L1 Core OS**: Non-negotiable system processes (`Finder`, `Dock`, `WindowServer`, `SystemUIServer`, `ControlCenter`, `NotificationCenter`, `loginwindow`). Must always be protected and can never be disabled via `disabled_rules` or removed via `remove_identifier_from_config` (which returns `PermissionDenied`). Managed by macOS `launchd` with `KeepAlive: true`.
 * **L2 Context Shell**: Calling process (PID), parent process (PPID), active shell sessions, and development environments (Terminal, Ghostty, iTerm2, Alacritty, VS Code). Must automatically resolve caller lineage to prevent terminating the user's terminal.
 * **L3 Persistent Utilities**: Menu bar utilities, window managers, and input methods (Raycast, Alfred, Rectangle, Rime, Sogou).
-* **L4 User Configuration**: Persistent rules defined in `~/.config/mtc/config.toml` or CLI overrides (`-k` / `--keep`).
+* **L4 User Configuration**: Persistent rules defined in `~/.config/taskcleaner/config.toml` or CLI overrides (`-k` / `--keep`).
 
-### B. POSIX Termination Safety
+### B. POSIX Termination Safety & Core Interceptor
+* **L1 & Lineage Interception**: Before dispatching POSIX signals, `tiered_terminate` intercepts and skips any targets matching `is_l1_core_os` or caller PID/PPID, preventing unintended signals to system daemons or active shells.
 * **Sequence**: Always issue `SIGTERM` first, poll process existence across the configured grace period (default 400ms), and escalate to `SIGKILL` only if the process remains unresponsive.
 * **Non-Intrusive Execution**: Bypass blocking modal dialogs by dispatching POSIX signals directly rather than invoking UI-level quit actions.
 
 ### C. Testing & Verification
-* Run `cargo test` after any modifications to `whitelist.rs` or `models.rs`.
+* Run `cargo test` after any modifications to `whitelist.rs`, `signal.rs`, or `models.rs`.
 * Ensure all existing unit tests in `whitelist::tests` pass with zero regressions.
 
 ---

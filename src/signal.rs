@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 
 use crate::app::AppTarget;
+use crate::whitelist::WhitelistManager;
 
 /// 单个应用的终止处置明细
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,9 +72,38 @@ pub fn tiered_terminate(
         };
     }
 
+    // 核心安全前置过滤：绝对禁止向当前调用者会话或 L1 系统核心进程派发终止信号
+    let my_pid = std::process::id() as i32;
+    let my_ppid = unsafe { libc::getppid() };
+
+    let mut valid_targets = Vec::new();
+    for target in targets {
+        if target.pid == my_pid || target.pid == my_ppid {
+            failed += 1;
+            records.push(ProcessTerminationRecord {
+                app: target.clone(),
+                status: "保护调用者会话，跳过终止".to_string(),
+                exit_signal: None,
+                error_msg: Some("当前执行会话或父进程处于受保护状态".to_string()),
+            });
+        } else if WhitelistManager::is_l1_core_os(&target.bundle_id)
+            || WhitelistManager::is_l1_core_os(&target.name)
+        {
+            failed += 1;
+            records.push(ProcessTerminationRecord {
+                app: target.clone(),
+                status: "系统核心进程受常驻保护，已跳过终止".to_string(),
+                exit_signal: None,
+                error_msg: Some("系统核心应用由 macOS launchd 守护，禁止通过信号强制终止".to_string()),
+            });
+        } else {
+            valid_targets.push(target.clone());
+        }
+    }
+
     if force_immediate {
         // --force 模式：跳过 SIGTERM 与轮询宽限期，直接发送 SIGKILL
-        for target in targets {
+        for target in &valid_targets {
             match send_posix_signal(target.pid, libc::SIGKILL) {
                 Ok(_) => {
                     terminated_sigkill += 1;
@@ -109,7 +139,7 @@ pub fn tiered_terminate(
     // 阶段一：批量派发软信号 SIGTERM (kill -15)
     let mut pending_targets: Vec<AppTarget> = Vec::new();
 
-    for target in targets {
+    for target in &valid_targets {
         match send_posix_signal(target.pid, libc::SIGTERM) {
             Ok(_) => {
                 pending_targets.push(target.clone());
