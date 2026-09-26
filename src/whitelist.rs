@@ -137,10 +137,8 @@ impl WhitelistManager {
         l1_names.insert("Dock".to_string());
         l1_names.insert("WindowServer".to_string());
 
-        // 初始化 L2: 会话终端与 IDE 保护
-        let mut l2_pids = HashSet::new();
-        l2_pids.insert(std::process::id() as i32);
-        l2_pids.insert(unsafe { libc::getppid() });
+        // 初始化 L2: 会话终端与 IDE 保护 (包含全部祖先进程会话链路)
+        let l2_pids = crate::signal::get_caller_lineage();
 
         let mut l2_bundle_ids = HashSet::new();
         l2_bundle_ids.insert("com.apple.Terminal".to_string());
@@ -229,12 +227,12 @@ impl WhitelistManager {
 
     /// 判定目标是否被四级白名单拦截并给出具体理由
     pub fn check_protection(&self, app: &AppTarget) -> Option<WhitelistMatch> {
-        // 1. 检查 L2 PID 自身与父进程保护 (不可协商，避免终止调用者自身)
+        // 1. 检查 L2 PID 自身与祖先会话链路保护 (不可协商，避免误伤调用者会话及其宿主环境)
         if self.l2_pids.contains(&app.pid) {
             return Some(WhitelistMatch {
                 tier: WhitelistTier::L2ContextShell,
                 tier_label: WhitelistTier::L2ContextShell.label().to_string(),
-                matched_rule: format!("进程 PID 处于当前执行会话 ({})", app.pid),
+                matched_rule: format!("进程 PID 处于当前调用者会话链路 ({})", app.pid),
             });
         }
 

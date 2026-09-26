@@ -49,6 +49,11 @@ pub fn scan_foreground_apps() -> Vec<AppTarget> {
             continue;
         }
 
+        // 过滤已标记为 terminated 的无效应用实例
+        if app.isTerminated() {
+            continue;
+        }
+
         let pid = app.processIdentifier() as i32;
         // 过滤已终止、挂起或无效的负值 PID
         if pid <= 0 {
