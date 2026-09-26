@@ -44,9 +44,9 @@
 
 本项目由三个高内聚、低耦合的核心模块构成：
 
-* **[macos-task-cleaner-core](https://github.com/DonJone/macos-task-cleaner-core)**：底层核心引擎库（Rust 开发）。基于 AppKit `NSWorkspace` 原生 API 精确扫描前台图形进程，提供多级白名单评估算法与 POSIX 信号生命周期调度。
-* **[macos-task-cleaner-cli](https://github.com/DonJone/macos-task-cleaner-cli) (`mtc`)**：命令行交互式客户端。支持终端向导、快速加白、静默清理与自动化集成。
-* **[macos-task-cleaner-gui](https://github.com/DonJone/macos-task-cleaner-gui) (`TaskCleaner.app`)**：状态栏常驻客户端。基于 Swift 与 SwiftUI 架构原生构建，轻量无额外运行时开销。
+* **[macos-task-cleaner-core](https://github.com/macos-task-cleaner/macos-task-cleaner-core)**：底层核心引擎库（Rust 开发）。基于 AppKit `NSWorkspace` 原生 API 精确扫描前台图形进程，提供多级白名单评估算法与 POSIX 信号生命周期调度。
+* **[macos-task-cleaner-cli](https://github.com/macos-task-cleaner/macos-task-cleaner-cli) (`mtc`)**：命令行交互式客户端。支持终端向导、快速加白、静默清理与自动化集成。
+* **[macos-task-cleaner-gui](https://github.com/macos-task-cleaner/macos-task-cleaner-gui) (`TaskCleaner.app`)**：状态栏常驻客户端。基于 Swift 与 SwiftUI 架构原生构建，轻量无额外运行时开销。
 
 ---
 
@@ -57,7 +57,7 @@
 要求 macOS 13.0+ 及 Swift 5.9+ / Xcode 环境：
 
 ```bash
-git clone https://github.com/DonJone/macos-task-cleaner-gui.git
+git clone https://github.com/macos-task-cleaner/macos-task-cleaner-gui.git
 cd macos-task-cleaner-gui
 
 # 使用内置脚本一键编译并打包 Release 应用
@@ -73,7 +73,7 @@ open /Applications/TaskCleaner.app
 要求已安装 Rust 工具链（1.75+）：
 
 ```bash
-git clone https://github.com/DonJone/macos-task-cleaner-cli.git
+git clone https://github.com/macos-task-cleaner/macos-task-cleaner-cli.git
 cd macos-task-cleaner-cli
 
 # 编译 Release 二进制文件
@@ -151,7 +151,7 @@ names = [
 
 ```toml
 [dependencies]
-macos-task-cleaner-core = { git = "https://github.com/DonJone/macos-task-cleaner-core" }
+macos-task-cleaner-core = { git = "https://github.com/macos-task-cleaner/macos-task-cleaner-core" }
 ```
 
 ```rust

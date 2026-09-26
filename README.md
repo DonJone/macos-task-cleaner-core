@@ -44,9 +44,9 @@ A high-performance, non-intrusive foreground task cleaner and process manager de
 
 The project is structured into three decoupled, complementary components:
 
-* **[macos-task-cleaner-core](https://github.com/DonJone/macos-task-cleaner-core)**: The core engine crate written in Rust. Provides `NSWorkspace` foreground process scanning, whitelist evaluation, and POSIX signal management.
-* **[macos-task-cleaner-cli](https://github.com/DonJone/macos-task-cleaner-cli) (`mtc`)**: The command-line client providing interactive wizards, scripting automation, and dry-run diagnostics.
-* **[macos-task-cleaner-gui](https://github.com/DonJone/macos-task-cleaner-gui) (`TaskCleaner.app`)**: The native macOS menu bar status item application built with Swift and SwiftUI.
+* **[macos-task-cleaner-core](https://github.com/macos-task-cleaner/macos-task-cleaner-core)**: The core engine crate written in Rust. Provides `NSWorkspace` foreground process scanning, whitelist evaluation, and POSIX signal management.
+* **[macos-task-cleaner-cli](https://github.com/macos-task-cleaner/macos-task-cleaner-cli) (`mtc`)**: The command-line client providing interactive wizards, scripting automation, and dry-run diagnostics.
+* **[macos-task-cleaner-gui](https://github.com/macos-task-cleaner/macos-task-cleaner-gui) (`TaskCleaner.app`)**: The native macOS menu bar status item application built with Swift and SwiftUI.
 
 ---
 
@@ -57,7 +57,7 @@ The project is structured into three decoupled, complementary components:
 Requires macOS 13.0+ and Xcode / Swift 5.9+:
 
 ```bash
-git clone https://github.com/DonJone/macos-task-cleaner-gui.git
+git clone https://github.com/macos-task-cleaner/macos-task-cleaner-gui.git
 cd macos-task-cleaner-gui
 
 # Build the release bundle
@@ -73,7 +73,7 @@ open /Applications/TaskCleaner.app
 Requires Rust toolchain (1.75+):
 
 ```bash
-git clone https://github.com/DonJone/macos-task-cleaner-cli.git
+git clone https://github.com/macos-task-cleaner/macos-task-cleaner-cli.git
 cd macos-task-cleaner-cli
 
 # Compile release binary
@@ -153,7 +153,7 @@ To integrate the engine into your own Rust project:
 
 ```toml
 [dependencies]
-macos-task-cleaner-core = { git = "https://github.com/DonJone/macos-task-cleaner-core" }
+macos-task-cleaner-core = { git = "https://github.com/macos-task-cleaner/macos-task-cleaner-core" }
 ```
 
 ```rust

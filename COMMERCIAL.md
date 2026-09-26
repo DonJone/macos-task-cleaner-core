@@ -44,7 +44,7 @@ If your organization wishes to embed, distribute, or customize this software wit
 
 若贵公司或组织需要将本软件（包括 Core 引擎、CLI 工具或 GUI 客户端）集成至闭源商业产品中，或需要免除 AGPLv3 开源传染义务，可申请购买商业授权：
 
-* **Commercial Inquiries**: Open an issue or inquiry on [GitHub Issues](https://github.com/DonJone/macos-task-cleaner-gui/issues) or sponsor the project via GitHub Sponsors.
+* **Commercial Inquiries**: Open an issue or inquiry on [GitHub Issues](https://github.com/macos-task-cleaner/macos-task-cleaner-gui/issues) or sponsor the project via GitHub Sponsors.
 * **Benefits of Commercial License**:
   - Exemption from AGPLv3 copyleft (keep your proprietary codebase closed-source).
   - Right to white-label or re-brand under customized agreements.
